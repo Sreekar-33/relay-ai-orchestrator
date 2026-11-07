@@ -17,7 +17,7 @@ Relay is a durable workflow engine for operations teams. A webhook or API call s
 ## Quick start (Docker)
 
 ```bash
-git clone <this-repo> relay && cd relay
+git clone https://github.com/Sreekar-33/relay-ai-orchestrator.git && cd relay-ai-orchestrator
 cp .env.example .env              # default AI provider is "heuristic": offline, no API key needed
 make up                           # docker compose up -d --build, then waits for /health
 open http://localhost:8080/console   # token: relay-demo-token
