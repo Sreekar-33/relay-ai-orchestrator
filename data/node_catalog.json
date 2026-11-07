@@ -1,0 +1,105 @@
+{
+  "_comment": "The canonical node catalog for Relay. Published workflows may only use node types listed here, with the required params present. The NL compiler must never emit a type outside this file. 'side_effect: true' nodes must send an Idempotency-Key header to the mock world. 'requires_approval: true' nodes are unreachable at runtime without an approval record earlier in the run.",
+  "triggers": [
+    {
+      "type": "webhook",
+      "description": "An HTTP POST to the workflow's hook URL starts a run. The request must carry the workflow's secret in the X-Relay-Secret header. The JSON body becomes {{trigger.body}}.",
+      "config": { "secret": { "type": "string", "required": true } }
+    },
+    {
+      "type": "schedule",
+      "description": "Starts a run on a cron schedule. 1-minute granularity is acceptable.",
+      "config": { "cron": { "type": "string", "required": true, "description": "5-field cron expression, e.g. */5 * * * *" } }
+    },
+    {
+      "type": "manual",
+      "description": "Started via the trigger API. The request's input object becomes {{trigger.body}}.",
+      "config": {}
+    }
+  ],
+  "nodes": [
+    {
+      "type": "http_request",
+      "description": "Calls an HTTP endpoint. Mutating requests (non-GET) are side effects and must carry an Idempotency-Key header.",
+      "side_effect": true,
+      "requires_approval": false,
+      "params": {
+        "method": { "type": "string", "required": true, "enum": ["GET", "POST", "PUT", "DELETE"] },
+        "url": { "type": "string", "required": true, "templatable": true },
+        "headers": { "type": "object", "required": false, "templatable": true },
+        "body": { "type": "object", "required": false, "templatable": true }
+      },
+      "output": { "status": "number", "body": "object|string" }
+    },
+    {
+      "type": "condition",
+      "description": "Evaluates a comparison and routes the run to on_true or on_false. The only node type with two outgoing edges.",
+      "side_effect": false,
+      "requires_approval": false,
+      "params": {
+        "left": { "type": "string", "required": true, "templatable": true },
+        "op": { "type": "string", "required": true, "enum": ["equals", "not_equals", "greater_than", "less_than", "contains"] },
+        "right": { "type": "string", "required": true, "templatable": true }
+      },
+      "branches": ["on_true", "on_false"],
+      "output": { "result": "boolean" },
+      "notes": "greater_than/less_than compare numerically when both sides parse as numbers; otherwise the comparison fails the step with a clear error."
+    },
+    {
+      "type": "delay",
+      "description": "Pauses the run for a number of seconds. A durable engine should survive a worker restart during a delay.",
+      "side_effect": false,
+      "requires_approval": false,
+      "params": {
+        "seconds": { "type": "number", "required": true }
+      },
+      "output": {}
+    },
+    {
+      "type": "notify",
+      "description": "Sends a message via the mock world: channel 'email' -> POST {MOCK_WORLD_URL}/email/send, channel 'chat' -> POST {MOCK_WORLD_URL}/chat/message. Side effect: must carry an Idempotency-Key.",
+      "side_effect": true,
+      "requires_approval": false,
+      "params": {
+        "channel": { "type": "string", "required": true, "enum": ["email", "chat"] },
+        "to": { "type": "string", "required": true, "templatable": true, "description": "email address, or chat channel name like #support" },
+        "subject": { "type": "string", "required": false, "templatable": true, "description": "email only" },
+        "message": { "type": "string", "required": true, "templatable": true }
+      },
+      "output": { "delivered": "boolean", "notification_id": "string" }
+    },
+    {
+      "type": "ai",
+      "description": "Calls an LLM with a prompt template and validates the response against output_schema (JSON Schema). On validation failure, retry once with the validation error appended; if still invalid, fail the step. Token usage must be recorded in the step trace.",
+      "side_effect": false,
+      "requires_approval": false,
+      "params": {
+        "prompt": { "type": "string", "required": true, "templatable": true },
+        "output_schema": { "type": "object", "required": true, "description": "JSON Schema the model output must conform to" }
+      },
+      "output": "defined by output_schema"
+    },
+    {
+      "type": "approval",
+      "description": "Pauses the run in waiting_approval until a human approves (run resumes) or rejects (run ends cancelled). The decision, decider, and timestamp are recorded and satisfy requires_approval checks for the rest of the run.",
+      "side_effect": false,
+      "requires_approval": false,
+      "params": {
+        "message": { "type": "string", "required": true, "templatable": true, "description": "shown to the approver in the console" }
+      },
+      "output": { "decision": "string", "decided_by": "string" }
+    },
+    {
+      "type": "order_action",
+      "description": "Executes a sensitive commerce action on the mock world: refund -> POST {MOCK_WORLD_URL}/orders/{order_id}/refund, replacement -> POST {MOCK_WORLD_URL}/orders/{order_id}/replacement. SENSITIVE: the engine must refuse to execute this node unless an approval node was approved earlier in the same run. Side effect: must carry an Idempotency-Key.",
+      "side_effect": true,
+      "requires_approval": true,
+      "params": {
+        "action": { "type": "string", "required": true, "enum": ["refund", "replacement"] },
+        "order_id": { "type": "string", "required": true, "templatable": true },
+        "amount_usd": { "type": "number", "required": false, "description": "refund only; omitted means full refund. The mock world rejects amounts above the order total." }
+      },
+      "output": { "status": "string", "reference_id": "string" }
+    }
+  ]
+}
