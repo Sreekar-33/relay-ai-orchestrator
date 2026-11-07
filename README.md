@@ -201,6 +201,7 @@ Authentication is built. Authorization (roles) is not.
 | **Authorization** | **Not built.** One demo token acts as builder, operator and approver, which the pack allows for Must Have. Role-based access and multi-tenancy are on the [Roadmap](#roadmap-not-implemented). |
 
 ---
+- **SSRF guard on `http_request`:** workflow authors and the NL compiler choose URLs, so the engine only calls allow-listed hosts. The mock world (and its `localhost:9210` aliases) is always allowed; `RELAY_HTTP_ALLOWED_HOSTS` adds more (`*` = any). Link-local and cloud-metadata addresses (`169.254.169.254`) are always blocked. Anything else fails the step with `url_not_allowed`.
 
 ## API reference
 

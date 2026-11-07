@@ -36,6 +36,7 @@ class Settings:
     data_dir: Path = REPO_ROOT / "data"
     worker_id: str = field(default_factory=lambda: f"{socket.gethostname()}-{uuid.uuid4().hex[:6]}")
     max_body_bytes: int = 1_000_000
+    http_allowed_hosts: tuple = ()   # extra hosts http_request may call; "*" = any (the mock world is always allowed)
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -62,4 +63,5 @@ class Settings:
             faults=tuple(f.strip() for f in faults.split(",")) if faults else (),
             data_dir=Path(_env("RELAY_DATA_DIR", str(d.data_dir))),
             worker_id=_env("RELAY_WORKER_ID", d.worker_id),
+            http_allowed_hosts=tuple(h.strip().lower() for h in (_env("RELAY_HTTP_ALLOWED_HOSTS") or "").split(",") if h.strip()),
         )
