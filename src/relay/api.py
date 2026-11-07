@@ -70,7 +70,7 @@ def create_app(settings: Settings | None = None, db: Database | None = None) -> 
 
     def auth(request: Request):
         h = request.headers.get("authorization", "")
-        tok = h[7:] if h.lower().startswith("bearer ") else request.query_params.get("token", "")
+        tok = h[7:] if h.lower().startswith("bearer ") else ""   # header only: tokens in URLs leak into access logs
         if not tok or not hmac.compare_digest(tok.encode(), settings.api_token.encode()):
             raise RelayError("unauthorized", "Missing or invalid bearer token", 401)
 

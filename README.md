@@ -56,14 +56,14 @@ triage() { curl -s -X POST $RELAY/hooks/wf_support_triage -H 'X-Relay-Secret: wh
 | 5 | Kill the worker mid-run and resume | `make drill` (kills the worker container with `SIGKILL` during `pack_delay`, restarts it, then runs `duplication_check.py`). For the harder case: `make drill-crash` | Run resumes from `pack_delay`, not from step 1. `duplication_check.py` exits 0: confirm email, `shipment.create` and shipped email each executed exactly once. The crash-window variant shows 1 executed + 1 replayed |
 | 6 | Runaway loop | `curl -X POST -H "$AUTH" -H 'Content-Type: application/json' -d '{"input":{"order_id":"ord_9999"}}' $RELAY/workflows/wf_runaway/trigger` | `failed`, `error.code=max_steps_exceeded`: "Run stopped by step cap: limits.max_steps=12 reached …" |
 | 7 | Smoke test | `make smoke` (= `python3 scripts/smoke_test.py --url http://localhost:8080 --token relay-demo-token`) | All checks PASS (captured in `docs/verification/smoke_test.txt`) |
+| 8 | NL compiler | Console → **Build** → describe the workflow in English → **Compile to draft** → **Save & publish** → trigger it. Try `nl_trap_001` (Postgres + Salesforce) | A valid draft that uses only catalog node types. An approval is inserted automatically before any `order_action`. Webhook secret shown once. Trap requests are refused, naming the missing capabilities |
 
 Extra checks (`data/extra/demo_workflows.json`, documented data additions):
 
 - `wf_unguarded_refund`: an `order_action` with no approval node in front of it. Publishing returns the warning `unguarded_sensitive_node`. At runtime the engine refuses the node: the run ends `failed` with `approval_required`, and no refund appears in the ledger.
-- `wf_ai_repair_demo`: an AI node with a deliberately strict schema. The trace shows two calls in `meta.ai_calls`: the first is invalid, with its errors, and the second is the repaired, valid output (`repaired: true`).
+- `wf_ai_repair_demo`: an AI node with a deliberately strict schema (ticket-code pattern, 60-char summary). The trace shows both calls in `meta.ai_calls`. Call 1 is usually invalid, and its errors name the violated rule (e.g. `maxLength=60, got 197 chars`); call 2 is the repaired, valid output (`repaired: true`). If the repair also fails, the step fails cleanly with `ai_output_invalid` and both calls recorded. Live capture: [`docs/verification/ai_repair.txt`](docs/verification/ai_repair.txt).
 - Chaos: `make chaos` takes the world `down` in the middle of a run (steps go to `retrying` with backoff, then complete once the world is back), sets `fail_rate 0.3` (retries absorb the failures, and the ledger shows replays rather than duplicates), and runs the runaway cap.
 
-| 8 | NL compiler | Console → **Build** → describe the workflow in English → **Compile to draft** → **Save & publish** → trigger it. Try `nl_trap_001` (Postgres + Salesforce) | A valid draft that uses only catalog node types. An approval is inserted automatically before any `order_action`. Webhook secret shown once. Trap requests are refused, naming the missing capabilities |
 
 ---
 
@@ -75,7 +75,7 @@ There is deliberately no drag-and-drop canvas (the brief: *"Workflows are create
 2. **JSON editor:** console → **Build** / **Edit**. Includes Save draft & validate (errors and warnings shown inline) and Save & publish (creates a new immutable version; in-flight runs keep their snapshot).
 3. **REST:** `POST /workflows` → `POST /workflows/{id}/publish`.
 
-**NL eval** (`python3 scripts/nl_eval.py`, EVALUATION_GUIDE §4 scoring; the compiler sees only `description`): **13/15 = 87%** with `openai/gpt-4o-mini`, all 3 trap cases refused and 0 invented node types. Full table: [`docs/verification/nl_eval_final.md`](docs/verification/nl_eval_final.md). Iteration 1 scored 11/15 ([`nl_eval_iteration1.md`](docs/verification/nl_eval_iteration1.md)): the model refused AI-judgement requests (sentiment, urgency), treating them as missing capabilities. One general rule describing what the `ai`/`order_action` nodes can do fixed that, without tuning to the test answers. Remaining misses:
+**NL eval** (`make nl-eval`, which runs `scripts/nl_eval.py` inside the api container; EVALUATION_GUIDE §4 scoring; the compiler sees only `description`): **13/15 = 87%** with `openai/gpt-4o-mini`, all 3 trap cases refused and 0 invented node types. Full table: [`docs/verification/nl_eval_final.md`](docs/verification/nl_eval_final.md). Iteration 1 scored 11/15 ([`nl_eval_iteration1.md`](docs/verification/nl_eval_iteration1.md)): the model refused AI-judgement requests (sentiment, urgency), treating them as missing capabilities. One general rule describing what the `ai`/`order_action` nodes can do fixed that, without tuning to the test answers. Remaining misses:
 - `nl_002`: both condition branches lead to the same node, so the scorer sees no live branch.
 - `nl_007`: the model refused the "keep checking until shipped" polling loop, although a backward jump through a delay node is legal.
 
@@ -212,14 +212,18 @@ Base URL `http://localhost:8080`. Interactive docs are at `/docs`. Errors use th
 | `GET /workflows` | bearer | `[{id, name, description, status: draft\|published, current_version, has_unpublished_changes, trigger_type, node_count, created_at, updated_at}]` |
 | `POST /workflows` | bearer | `201` draft in the seed definition shape · `400` shape error · `409` duplicate id |
 | `GET /workflows/{id}` | bearer | list fields + `definition` (secret masked) + `validation {ok, errors[{code, message, node_id?, field?}], warnings[]}` + `versions [{version, published_at}]` |
+| `PUT /workflows/{id}` | bearer | update the working copy (same shape). Published workflows stay runnable on their last version until republished; `has_unpublished_changes=true`. A masked secret round-trips to the stored one |
+| `POST /workflows/{id}/validate` | bearer | dry run: `{ok, errors[], warnings[]}` (warnings include `unguarded_sensitive_node`, `ai_controls_side_effect_target`, `unreachable_node`) |
+| `POST /workflows/compile` | bearer | body `{"description": "...", "save": true}` → `201 {workflow{id, status: draft, definition}, webhook{url, secret} (shown once), explanation, warnings, notes, compile{attempts, tokens}}` · `200 {refusal{reason, missing_capabilities}}` · `422 compile_failed` · `503 compiler_requires_model` |
 | `POST /workflows/{id}/publish` | bearer | `{id, status, version, warnings}` · `422` with `error.code` (e.g. `invalid_node_type`, `missing_required_param`, `invalid_reference`, `invalid_entry`) |
 | `POST /workflows/{id}/trigger` | bearer | body `{"input": {...}}` → `202 {run_id, id, status}` · `409 workflow_not_published` |
 | `POST /hooks/{id}` | `X-Relay-Secret` | JSON body → `202 {run_id}` · `401 invalid_webhook_secret` · `409` (not a webhook workflow, or not published) · `413` |
 | `GET /runs?workflow_id=&status=&limit=` | bearer | newest first: `[{run_id, workflow_id, workflow_version, status, trigger_type, steps_executed, ai_tokens_used, error, ended_reason, risk_flags, created_at, started_at, finished_at}]` |
 | `GET /runs/{id}` | bearer | summary + `input`, `current_node_id`, `cancel_requested`, `limits`, `definition_snapshot`, `steps[]` (status, attempt, `attempts[]`, input, output, error, tokens, `idempotency_key`, `approval_id`, `gate`, `wake_at`, `next_attempt_at`, `meta`, timing), `approvals[]` |
-| `POST /runs/{id}/cancel` | bearer | `{run_id, status, cancel_requested}` · `409 run_not_cancellable` if the run is terminal |
+| `POST /runs/{id}/cancel` | bearer | `200` for queued runs (cancelled, nothing runs) or waiting_approval runs (cancelled, approval → `closed`). `202 {cancel_requested: true}` for a running run (cooperative: stops between steps; a sleeping or retrying run cancels immediately) · `409 run_not_cancellable` if terminal |
 | `GET /approvals?status=pending` | bearer | `[{id, run_id, workflow_id, node_id, message, status, decided_by, decided_at, decision_note, created_at}]` |
 | `POST /approvals/{id}/approve` · `/reject` | bearer | body `{"decided_by": "name", "note"?}` → approval + `run_status` · `409 approval_already_decided` |
+| `GET /catalog` | bearer | the node catalog (`data/node_catalog.json`) |
 | `GET /samples` | bearer | rows of `data/sample_payloads.jsonl` `{id, workflow, note, expected, body}` |
 | `GET /stats` | bearer | `{runs_by_status, pending_approvals, workflows, ai_tokens_total}` |
 | `GET /world/ledger` | bearer | `{entries[{seq, ts, action, payload, idempotency_key, replayed, status}], count}` (proxy) |
@@ -256,7 +260,7 @@ Copy `.env.example` to `.env`. Every setting has a working default for Docker.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
-make db && make test     # 34 tests, ~6s
+make db && make test     # 42 tests, ~6s
 ```
 
 The tests run against a real Postgres (the `relay_test` database on `localhost:5433`, created automatically), with the pack's `mock_world.py` running as a subprocess and the scripted `fake` AI provider.
@@ -281,6 +285,19 @@ Captured outputs are in `docs/verification/`:
 | `pytest.txt` | full test run |
 
 The summary is in [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
+
+---
+
+## Data retention: prompts and model responses
+
+A deliberate choice, documented as DATA_MODEL.md asks. Each `ai` step stores its **resolved prompt** in `steps.resolved_input`, which can include customer text and PII from the webhook payload. It also stores each **raw model response** (truncated to 4 kB) in `steps.meta.ai_calls[].raw_text`, next to the validated output and the token counts. They are kept because a trace must be complete enough to debug a wrong branch decision after the fact: you need to see what the model was shown and what it answered. Implications and mitigations:
+- **No automatic expiry yet.** Production would add a retention job (e.g. delete or redact `resolved_input`/`raw_text` after N days, keep the outputs and token counts) and encryption at rest.
+- **Access is behind the API bearer token.** Secrets never enter prompts (webhook secrets are masked everywhere, and the API key lives only in the provider adapter).
+- **Model output is screened before use downstream** (emails and URLs redacted), but stored raw for audit.
+
+## Seeding
+
+At API startup, the four pack workflows (`data/seed_workflows.json`) and the two demo additions (`data/extra/demo_workflows.json`) are created and published idempotently: an existing id is never overwritten. `make reset` wipes the volume and re-seeds.
 
 ---
 
@@ -334,9 +351,13 @@ The summary is in [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
 │   ├── services.py      # draft → publish (immutable versions), triggers, approvals, cancel
 │   ├── api.py           # FastAPI routes + console mount
 │   ├── worker.py        # claim / lease / heartbeat loop, reconcile
+│   ├── compiler.py      # NL compiler: English -> validated draft workflow, or refusal
 │   └── console/index.html
 ├── tests/               # pytest suites (see Testing)
 ├── scripts/
+│   ├── nl_eval.py            # one-command NL compiler eval (make nl-eval)
+│   ├── demo_triage.sh        # all triage payloads through the webhook, live
+│   ├── trace_summary.py      # pretty-print a run trace
 │   ├── drill_kill_resume.sh   # modes: delay | crash-window
 │   ├── drill_chaos.sh
 │   └── smoke_test.py duplication_check.py mock_world.py mock_provider.py validate_pack.py   # from the pack

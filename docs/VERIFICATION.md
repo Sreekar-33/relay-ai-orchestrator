@@ -1,5 +1,7 @@
 # Verification report
 
+Contents: 1 smoke · 2 kill-and-resume · 3 failure drills · 4 injection · 5 tests · schema enforcement (live) · 6 NL eval · known limitations
+
 All outputs below were captured from the Docker Compose stack (`make up`) on 2026-11-07, with the live model `openai/gpt-4o-mini` via OpenRouter. Raw files are in [`docs/verification/`](verification/).
 
 ## 1. Smoke test: 28 passed, 0 warnings, 0 failed
@@ -45,7 +47,7 @@ PASS: every side effect executed exactly once.
 
 The gate is engine logic: before any `requires_approval` node runs, the engine queries for an `approved` approval row earlier in the same run. No model output can create that row. `wf_unguarded_refund` (an order_action with no approval node) is refused at runtime with `approval_required`, and no ledger entry is written.
 
-## 5. Automated tests: 34 passed ([`pytest.txt`](verification/pytest.txt))
+## 5. Automated tests: 42 passed ([`pytest.txt`](verification/pytest.txt))
 
 | Requirement | Tests |
 |---|---|
@@ -54,6 +56,8 @@ The gate is engine logic: before any `requires_approval` node runs, the engine q
 | Schema enforcement + guardrails | `tests/test_ai.py`, `tests/test_engine.py::test_malformed_ai_output_fails_cleanly_with_both_attempts` |
 | Idempotency + crash recovery | `tests/test_engine.py` (stable key, retries reuse key, crash window → 1 executed + 1 replayed + `duplication_check.py` exit 0, leases) |
 | Gates / injection / caps / snapshots / cancel | `tests/test_engine.py` |
+| HTTP contract: 401 token/secret, 409 decided approval, 409 terminal cancel, cancel queued/waiting, 422 validation, secret masking, no token in URLs | `tests/test_api.py` |
+| NL compiler: repair loop, refusal, auto approval gate, give-up | `tests/test_compiler.py` |
 
 ## Idempotency scheme and the crash-window answer
 
@@ -67,3 +71,18 @@ The key is `{run_id}:{node_id}:{sequence}`. It is persisted on the step row **be
 - Change: one general prompt rule listing the catalog's own capabilities (the `ai` node can classify, judge, summarize and extract; `order_action` does refunds and replacements). No eval answers were added.
 - Iteration 2 (final): 13/15 ([`nl_eval_final.md`](verification/nl_eval_final.md)). All 3 traps refused with missing capabilities, 0 invented node types, every produced workflow passes publish validation, and approvals precede every `order_action`.
 - Misses: `nl_002` has a condition whose two branches converge on the same node (no live branch); `nl_007` was refused instead of being built as a delay-based polling loop.
+
+## Schema enforcement, live ([`ai_repair.txt`](verification/ai_repair.txt))
+
+`wf_ai_repair_demo` with `openai/gpt-4o-mini`. The first two captured runs (40-char limit) show a **clean failure**: call 1 was invalid, the repair call was still too long, and the step failed with `ai_output_invalid`, both calls and the tokens recorded, and nothing downstream executed. That exposed a weakness: jsonschema's message only says "is too long", so the model didn't know the limit. The repair feedback now names the violated rule. The final capture shows **call 1 INVALID ("rule maxLength=60, got 197 chars") → call 2 VALID → `repaired: true`**, and the run succeeded.
+
+## Known limitations
+
+See also the README's *Known limitations* and *Roadmap* sections.
+- Single demo bearer token; no role separation or multi-tenancy.
+- Cancel is cooperative between steps; an in-flight step finishes first.
+- `schedule` triggers validate (and the compiler can emit them) but **are not fired**: there is no scheduler yet. No replay, SSE, or AI failure triage.
+- No retention policy for stored prompts and responses yet (see README *Data retention*).
+- Injection risk flags and email/URL redaction are pattern-based. The guarantees are structural: the engine gate and enum-only routing.
+- The NL compiler's missing-capability list is model-generated and can be incomplete (e.g. it named MySQL and SMS but not Google Sheets in one test); refusals and no-invented-types are enforced.
+- `make smoke` / `make drill` overwrite the captured files in `docs/verification/`.

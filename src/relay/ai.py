@@ -219,7 +219,12 @@ def parse_json(text: str):
 
 def validation_errors(obj, schema) -> list:
     errs = sorted(Draft202012Validator(schema).iter_errors(obj), key=lambda e: list(e.absolute_path))
-    return [f"{'/'.join(str(p) for p in e.absolute_path) or '<root>'}: {e.message}" for e in errs]
+    def rule(e):  # tell the model the exact constraint it broke, so the single repair attempt can actually succeed
+        extra = f" (rule {e.validator}={json.dumps(e.validator_value)}"
+        if isinstance(e.instance, str) and e.validator in ("maxLength", "minLength"):
+            extra += f", got {len(e.instance)} chars"
+        return extra + ")" if e.validator in ("maxLength", "minLength", "pattern", "enum", "maximum", "minimum", "type", "required") else ""
+    return [f"{'/'.join(str(p) for p in e.absolute_path) or '<root>'}: {e.message}{rule(e)}" for e in errs]
 
 
 def _sum(calls) -> TokenUsage:

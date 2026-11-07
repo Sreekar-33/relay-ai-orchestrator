@@ -29,7 +29,7 @@
               "type": "object",
               "properties": {
                 "ticket_code": { "type": "string", "pattern": "^TKT-[0-9]{4}$" },
-                "summary": { "type": "string", "maxLength": 40 }
+                "summary": { "type": "string", "maxLength": 60 }
               },
               "required": ["ticket_code", "summary"],
               "additionalProperties": false
