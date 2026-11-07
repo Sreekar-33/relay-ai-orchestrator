@@ -1,0 +1,49 @@
+{
+  "_comment": "Added by this implementation (not part of the pack). See data/README.md.",
+  "workflows": [
+    {
+      "id": "wf_unguarded_refund",
+      "name": "Unguarded refund (gate demo)",
+      "description": "Deliberately has NO approval node before order_action. Publishing warns; the engine refuses to execute the refund at runtime.",
+      "trigger": { "type": "manual" },
+      "entry": "refund_now",
+      "limits": { "max_steps": 10, "timeout_seconds": 120, "max_ai_tokens": 0 },
+      "nodes": [
+        { "id": "refund_now", "type": "order_action", "params": { "action": "refund", "order_id": "{{trigger.body.order_id}}" }, "next": null }
+      ]
+    },
+    {
+      "id": "wf_ai_repair_demo",
+      "name": "AI schema repair demo",
+      "description": "Strict output schema (ticket code pattern + very short summary) so the first model answer often fails validation and the repair retry is visible in the trace.",
+      "trigger": { "type": "manual" },
+      "entry": "extract",
+      "limits": { "max_steps": 10, "timeout_seconds": 120, "max_ai_tokens": 6000 },
+      "nodes": [
+        {
+          "id": "extract",
+          "type": "ai",
+          "params": {
+            "prompt": "Write a detailed, multi-sentence summary of this customer message and give it a ticket code.\n---\n{{trigger.body.message}}\n---",
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "ticket_code": { "type": "string", "pattern": "^TKT-[0-9]{4}$" },
+                "summary": { "type": "string", "maxLength": 60 }
+              },
+              "required": ["ticket_code", "summary"],
+              "additionalProperties": false
+            }
+          },
+          "next": "post"
+        },
+        {
+          "id": "post",
+          "type": "notify",
+          "params": { "channel": "chat", "to": "#support", "message": "{{nodes.extract.output.ticket_code}}: {{nodes.extract.output.summary}}" },
+          "next": null
+        }
+      ]
+    }
+  ]
+}

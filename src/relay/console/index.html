@@ -1,0 +1,1109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Relay Console</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #e1e4e9;
+  --border-strong: #cdd2da;
+  --text: #191c21;
+  --muted: #5d6572;
+  --accent: #3451d1;
+  --accent-hover: #2a43b3;
+  --accent-fg: #ffffff;
+  --danger: #c02a31;
+  --danger-hover: #a3222a;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .05);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --grey: #4b5563;       --grey-bg: #eceef2;
+  --blue: #1d4ed8;       --blue-bg: #e2eaff;
+  --amber: #9a5800;      --amber-bg: #fff0d1;
+  --green: #157a3a;      --green-bg: #dff4e6;
+  --red: #bb2329;        --red-bg: #fde4e5;
+  --slate: #475569;      --slate-bg: #e3e8ef;
+  --violet: #6b2bd6;     --violet-bg: #eee6ff;
+  --orange: #b9420b;     --orange-bg: #ffe8d8;
+  --teal: #0f766e;       --teal-bg: #d9f3f0;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0e1015;
+    --surface: #161920;
+    --surface-2: #1d2129;
+    --border: #2a2f39;
+    --border-strong: #3a404c;
+    --text: #e5e7eb;
+    --muted: #9aa2ae;
+    --accent: #7d93ff;
+    --accent-hover: #95a7ff;
+    --accent-fg: #0e1015;
+    --danger: #ff7a80;
+    --danger-hover: #ff959a;
+    --shadow: none;
+
+    --grey: #c2c7cf;   --grey-bg: #272b33;
+    --blue: #8eb0ff;   --blue-bg: #19284a;
+    --amber: #ffc95e;  --amber-bg: #392a0c;
+    --green: #6fd896;  --green-bg: #12301f;
+    --red: #ff8a8f;    --red-bg: #3c1518;
+    --slate: #a9b4c5;  --slate-bg: #242b37;
+    --violet: #c3a6ff; --violet-bg: #291e44;
+    --orange: #ffaa74; --orange-bg: #3a2113;
+    --teal: #6fd8cc;   --teal-bg: #10302d;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1 { font-size: 22px; line-height: 1.25; margin: 0; font-weight: 650; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+h2 { font-size: 15px; margin: 22px 0 10px; font-weight: 650; }
+h3 { font-size: 13px; margin: 14px 0 6px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+h4 { font-size: 12px; margin: 12px 0 6px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+p { margin: 6px 0; }
+code, .mono { font-family: var(--mono); font-size: 12.5px; }
+code { background: var(--surface-2); border: 1px solid var(--border); padding: 0 4px; border-radius: 4px; overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
+.small { font-size: 12.5px; }
+
+/* top bar */
+header.top { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); }
+header.top .inner { max-width: 1240px; margin: 0 auto; padding: 0 24px; height: 54px; display: flex; align-items: center; gap: 22px; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: var(--text); letter-spacing: -.01em; }
+.brand:hover { text-decoration: none; }
+.brand .mark { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); display: grid; place-items: center; color: var(--accent-fg); font-size: 13px; font-weight: 800; }
+.brand small { font-weight: 500; color: var(--muted); font-size: 12px; }
+nav#nav { display: flex; gap: 2px; flex: 1; }
+nav#nav a { color: var(--muted); padding: 6px 11px; border-radius: 7px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; }
+nav#nav a:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
+nav#nav a.active { background: var(--surface-2); color: var(--text); }
+.count { display: none; min-width: 19px; height: 19px; padding: 0 6px; border-radius: 999px; background: var(--amber-bg); color: var(--amber); font-size: 11.5px; font-weight: 700; align-items: center; justify-content: center; }
+.count.show { display: inline-flex; }
+.top-right { display: flex; align-items: center; gap: 10px; }
+.conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.conn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--grey); }
+.conn.ok .dot { background: var(--green); }
+.conn.bad .dot { background: var(--red); }
+
+main { max-width: 1240px; margin: 0 auto; padding: 22px 24px 60px; }
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.sub { color: var(--muted); margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+.sub > span { white-space: nowrap; }
+
+/* buttons + inputs */
+button, .btn { font: inherit; font-weight: 600; font-size: 13px; border-radius: 7px; padding: 6px 13px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg); cursor: pointer; line-height: 1.4; }
+button:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.ghost { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+button.ghost:hover:not(:disabled) { background: var(--surface-2); border-color: var(--border-strong); }
+button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+button.danger:hover:not(:disabled) { background: var(--danger-hover); border-color: var(--danger-hover); }
+button.ok { background: var(--green); border-color: var(--green); color: #fff; }
+@media (prefers-color-scheme: dark) { button.danger, button.ok { color: #0e1015; } }
+input, select, textarea { font: inherit; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 7px; padding: 6px 9px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+textarea { width: 100%; font-family: var(--mono); font-size: 12.5px; resize: vertical; }
+label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.spacer { flex: 1; }
+
+/* cards + layout */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); }
+.card > h2:first-child, .card > h3:first-child { margin-top: 0; }
+.cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.cols-even { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 900px) { .cols, .cols-even { grid-template-columns: minmax(0, 1fr); } header.top .inner { gap: 10px; } .brand small { display: none; } }
+
+/* tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 10px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: block; color: var(--text); box-shadow: var(--shadow); }
+a.tile:hover { text-decoration: none; border-color: var(--border-strong); }
+.tile .n { font-size: 26px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.tile .l { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.tile.st-waiting_approval .n, .tile.hot .n { color: var(--amber); }
+.tile.st-failed .n { color: var(--red); }
+.tile.st-running .n { color: var(--blue); }
+.tile.st-succeeded .n { color: var(--green); }
+
+/* tables */
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: auto; box-shadow: var(--shadow); }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 650; padding: 9px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+td.num { font-variant-numeric: tabular-nums; }
+.trunc { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.empty { padding: 26px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--border-strong); border-radius: 10px; }
+
+/* status classes (shared by badges, step cards, tiles) */
+.st-queued, .st-unknown, .st-in_flight_unknown { --c: var(--grey); --cb: var(--grey-bg); }
+.st-running, .st-in_flight { --c: var(--blue); --cb: var(--blue-bg); }
+.st-waiting_approval, .st-waiting, .st-pending, .st-draft { --c: var(--amber); --cb: var(--amber-bg); }
+.st-succeeded, .st-approved, .st-published, .st-ok { --c: var(--green); --cb: var(--green-bg); }
+.st-failed, .st-rejected, .st-down { --c: var(--red); --cb: var(--red-bg); }
+.st-cancelled, .st-closed, .st-interrupted { --c: var(--slate); --cb: var(--slate-bg); }
+.st-sleeping { --c: var(--violet); --cb: var(--violet-bg); }
+.st-retrying, .st-transient_error, .st-flaky { --c: var(--orange); --cb: var(--orange-bg); }
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 650; color: var(--c, var(--grey)); background: var(--cb, var(--grey-bg)); white-space: nowrap; line-height: 1.6; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.st-running::before, .badge.st-retrying::before { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+h1 .badge { font-size: 13px; }
+
+/* pills + types */
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
+.pill.ok { background: var(--green-bg); color: var(--green); border-color: transparent; }
+.pill.bad { background: var(--red-bg); color: var(--red); border-color: transparent; }
+.pill.warn { background: var(--amber-bg); color: var(--amber); border-color: transparent; }
+.pill.info { background: var(--blue-bg); color: var(--blue); border-color: transparent; }
+.pill.violet { background: var(--violet-bg); color: var(--violet); border-color: transparent; }
+.type { font-family: var(--mono); font-size: 11.5px; padding: 1px 7px; border-radius: 5px; background: var(--slate-bg); color: var(--slate); font-weight: 600; white-space: nowrap; }
+.type.t-ai { background: var(--violet-bg); color: var(--violet); }
+.type.t-condition { background: var(--teal-bg); color: var(--teal); }
+.type.t-approval { background: var(--amber-bg); color: var(--amber); }
+.type.t-http, .type.t-action, .type.t-side_effect { background: var(--blue-bg); color: var(--blue); }
+.type.t-delay, .type.t-sleep, .type.t-wait { background: var(--violet-bg); color: var(--violet); }
+.edge { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.edge b { color: var(--text); font-weight: 600; }
+
+/* boxes */
+.box { border-radius: 10px; padding: 11px 14px; margin: 12px 0; border: 1px solid transparent; }
+.box b.t { display: block; margin-bottom: 2px; }
+.error-box { background: var(--red-bg); color: var(--red); }
+.error-box .msg { color: var(--text); }
+.risk-box { background: var(--amber-bg); color: var(--amber); border-color: color-mix(in srgb, var(--amber) 35%, transparent); }
+.risk-box .flags { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; color: var(--text); }
+.risk-box .flags li { font-size: 12.5px; }
+.approval-box { background: var(--amber-bg); border: 1.5px solid var(--amber); }
+.approval-box .msg { color: var(--text); font-size: 15px; font-weight: 600; margin: 2px 0 4px; }
+.approval-box .lbl { color: var(--amber); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.info-box { background: var(--blue-bg); color: var(--text); }
+ul.issues { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+ul.issues li { padding: 7px 10px; border-radius: 7px; font-size: 13px; }
+ul.issues li.error { background: var(--red-bg); color: var(--red); }
+ul.issues li.warn { background: var(--amber-bg); color: var(--text); }
+a.btn { display: inline-block; text-decoration: none; }
+a.btn.ghost { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ok-box { background: var(--green-bg); color: var(--green); }
+ul.issues { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 6px; }
+ul.issues li { padding: 7px 12px; border-radius: 8px; font-size: 13px; }
+ul.issues li.error { background: var(--red-bg); }
+ul.issues li.warn { background: var(--amber-bg); }
+ul.issues li b { font-family: var(--mono); font-size: 12px; margin-right: 6px; }
+ul.issues li.error b { color: var(--red); }
+ul.issues li.warn b { color: var(--amber); }
+
+/* json */
+pre { margin: 0; }
+pre.json { font-family: var(--mono); font-size: 12px; line-height: 1.5; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+details > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; font-weight: 600; user-select: none; padding: 4px 0; list-style-position: inside; }
+details > summary:hover { color: var(--text); }
+details.block { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; margin-top: 10px; }
+details.block[open] > summary { margin-bottom: 8px; }
+
+/* workflow nodes */
+ol.nodes { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; counter-reset: n; }
+ol.nodes > li { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 9px 12px; counter-increment: n; }
+ol.nodes > li.entry { border-color: var(--accent); }
+ol.nodes .nh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+ol.nodes .nh::before { content: counter(n); font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 14px; }
+ol.nodes .edges { display: flex; gap: 12px; flex-wrap: wrap; margin-left: auto; }
+
+/* run timeline */
+ol.timeline { list-style: none; padding: 0 0 0 22px; margin: 0; position: relative; }
+ol.timeline::before { content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: var(--border); }
+li.step { position: relative; margin-bottom: 10px; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--c, var(--border)); border-radius: 9px; padding: 10px 14px; box-shadow: var(--shadow); }
+li.step::before { content: ""; position: absolute; left: -21px; top: 14px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 3px solid var(--c, var(--grey)); }
+.step-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 9px; }
+.step-head .seq { font-family: var(--mono); color: var(--muted); font-size: 12px; font-weight: 600; }
+.step-head .nid { font-family: var(--mono); font-weight: 650; font-size: 13.5px; }
+.step-meta { color: var(--muted); font-size: 12.5px; }
+.step .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.step .pills:empty { display: none; }
+.step details { margin-top: 6px; }
+.call { border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; margin: 8px 0; background: var(--surface); }
+.call.bad { border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+.call .ch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12.5px; }
+.call ul { margin: 4px 0 8px; padding-left: 18px; color: var(--red); font-size: 12.5px; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; font-size: 13px; margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; }
+
+/* approvals list */
+ul.approvals { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+ul.approvals li { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--amber); border-radius: 9px; padding: 12px 16px; box-shadow: var(--shadow); }
+ul.approvals .msg { font-weight: 600; font-size: 14.5px; }
+
+/* world */
+.world-state { display: flex; gap: 10px; flex-wrap: wrap; }
+.world-state .tile { min-width: 140px; }
+
+/* toast */
+#toast { position: fixed; right: 20px; bottom: 20px; max-width: 440px; padding: 10px 16px; border-radius: 9px; font-weight: 600; font-size: 13px; background: var(--text); color: var(--bg); opacity: 0; transform: translateY(8px); transition: opacity .18s, transform .18s; pointer-events: none; z-index: 50; box-shadow: 0 6px 24px rgba(0, 0, 0, .18); }
+#toast.show { opacity: 1; transform: none; }
+#toast.err { background: var(--red); color: #fff; }
+@media (prefers-color-scheme: dark) { #toast.err { color: #0e1015; } }
+.loading { padding: 30px 0; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="inner">
+    <a class="brand" href="#/"><span class="mark">R</span>Relay <small>operator console</small></a>
+    <nav id="nav">
+      <a href="#/" data-nav="/">Dashboard</a>
+      <a href="#/workflows" data-nav="/workflows">Workflows</a>
+      <a href="#/build" data-nav="/build">Build</a>
+      <a href="#/runs" data-nav="/runs">Runs</a>
+      <a href="#/approvals" data-nav="/approvals">Approvals <span id="apr-badge" class="count"></span></a>
+      <a href="#/world" data-nav="/world">Mock world</a>
+    </nav>
+    <div class="top-right">
+      <span id="conn" class="conn" title="API connection"><span class="dot"></span><span id="conn-text">connecting…</span></span>
+      <button id="token-btn" class="ghost" type="button" title="Set the API bearer token">Token</button>
+    </div>
+  </div>
+</header>
+<main id="view"></main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+// ---------------------------------------------------------------------------
+// Utilities. SECURITY: every untrusted value is passed through esc() before it
+// is placed in markup. Webhook payloads intentionally contain injection text.
+// ---------------------------------------------------------------------------
+const ESC_MAP = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;", "`": "&#96;" };
+const esc = (v) => String(v ?? "").replace(/[&<>"'`]/g, (c) => ESC_MAP[c]);
+const $ = (sel, root = document) => root.querySelector(sel);
+const TERMINAL = new Set(["succeeded", "failed", "cancelled"]);
+const RUN_STATUSES = ["queued", "running", "waiting_approval", "succeeded", "failed", "cancelled"];
+
+const stClass = (s) => "st-" + String(s ?? "unknown").replace(/[^a-zA-Z0-9_]/g, "");
+const badge = (s) => `<span class="badge ${stClass(s)}">${esc(String(s ?? "unknown").replace(/_/g, " "))}</span>`;
+const json = (v) => `<pre class="json">${esc(v === undefined ? "null" : JSON.stringify(v, null, 2))}</pre>`;
+const typeTag = (t) => `<span class="type t-${esc(String(t ?? "").replace(/[^a-zA-Z0-9_]/g, ""))}">${esc(t)}</span>`;
+const num = (n) => (typeof n === "number" ? esc(n.toLocaleString()) : esc(n ?? "—"));
+
+function toDate(v) {
+  if (v == null || v === "") return null;
+  if (typeof v === "number") return new Date(v < 1e12 ? v * 1000 : v);
+  const d = new Date(v);
+  return isNaN(d) ? null : d;
+}
+const time = (v) => { const d = toDate(v); return d ? esc(d.toLocaleTimeString()) : "—"; };
+function ago(v) {
+  const d = toDate(v); if (!d) return "—";
+  const s = Math.max(0, Math.round((Date.now() - d) / 1000));
+  const txt = s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)}m ago` : s < 86400 ? `${Math.round(s / 3600)}h ago` : `${Math.round(s / 86400)}d ago`;
+  return `<span title="${esc(d.toLocaleString())}">${esc(txt)}</span>`;
+}
+function dur(ms) {
+  if (ms == null || isNaN(ms)) return "—";
+  return ms < 1000 ? `${Math.round(ms)} ms` : ms < 60000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
+}
+
+function toast(msg, kind = "ok") {
+  const t = $("#toast");
+  t.textContent = String(msg);
+  t.className = `show ${kind}`;
+  clearTimeout(t._h);
+  t._h = setTimeout(() => { t.className = ""; }, 3800);
+}
+
+function table(cols, rows, empty = "Nothing here yet.") {
+  if (!rows || !rows.length) return `<div class="empty">${esc(empty)}</div>`;
+  return `<div class="table-wrap"><table><thead><tr>${cols.map((c) => `<th>${esc(c.label)}</th>`).join("")}</tr></thead><tbody>${rows
+    .map((r) => `<tr>${cols.map((c) => `<td class="${esc(c.cls || "")}">${c.render(r)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+
+function errBox(e) {
+  const hint = e && e.status === 401 ? `<div class="msg small">Use the <b>Token</b> button (top right) to set the API token.</div>` : "";
+  return `<div class="box error-box"><b class="t">${esc(e?.code || "error")}</b><div class="msg">${esc(e?.message || String(e))}</div>${hint}</div>`;
+}
+
+// Re-render a container while keeping open <details>, focus/caret and <pre> scroll positions.
+function patch(el, html) {
+  const opened = new Set(), known = new Set(), scrolls = new Map();
+  el.querySelectorAll("details[data-k]").forEach((d) => { known.add(d.dataset.k); if (d.open) opened.add(d.dataset.k); });
+  el.querySelectorAll("[data-s]").forEach((p) => { if (p.scrollTop || p.scrollLeft) scrolls.set(p.dataset.s, [p.scrollTop, p.scrollLeft]); });
+  const act = document.activeElement;
+  const focusId = act && el.contains(act) && act.id ? act.id : null;
+  const sel = focusId && typeof act.selectionStart === "number" ? [act.selectionStart, act.selectionEnd] : null;
+  el.innerHTML = html;
+  el.querySelectorAll("details[data-k]").forEach((d) => { if (known.has(d.dataset.k)) d.open = opened.has(d.dataset.k); });
+  el.querySelectorAll("[data-s]").forEach((p) => { const s = scrolls.get(p.dataset.s); if (s) { p.scrollTop = s[0]; p.scrollLeft = s[1]; } });
+  if (focusId) {
+    const f = el.querySelector(`#${CSS.escape(focusId)}`);
+    if (f) { f.focus(); if (sel && f.setSelectionRange) { try { f.setSelectionRange(sel[0], sel[1]); } catch { /* not a text input */ } } }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Storage (wrapped: private windows may throw) and API client.
+// ---------------------------------------------------------------------------
+const TOKEN_KEY = "relay.token", DECIDER_KEY = "relay.decider", DEFAULT_TOKEN = "relay-demo-token";
+function sget(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function sset(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } }
+let memToken = null, memDecider = null;
+const getToken = () => memToken || sget(TOKEN_KEY) || DEFAULT_TOKEN;
+const setToken = (t) => { memToken = t; sset(TOKEN_KEY, t); };
+const getDecider = () => memDecider ?? sget(DECIDER_KEY) ?? "demo-operator";
+const setDecider = (v) => { memDecider = v; sset(DECIDER_KEY, v); };
+
+let healthInfo = "";
+function setConn(ok, why) {
+  const c = $("#conn");
+  c.classList.toggle("ok", ok); c.classList.toggle("bad", !ok);
+  $("#conn-text").textContent = ok ? (healthInfo || "API online") : (why || "API unreachable");
+}
+
+async function api(path, { method = "GET", body } = {}) {
+  const headers = { Authorization: `Bearer ${getToken()}`, Accept: "application/json" };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  let res;
+  try {
+    res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  } catch {
+    setConn(false);
+    throw Object.assign(new Error("Cannot reach the Relay API."), { code: "network_error", status: 0 });
+  }
+  if (res.status === 401) setConn(false, "unauthorized"); else if (res.status < 500) setConn(true); else setConn(false, `API error ${res.status}`);
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+  if (!res.ok) {
+    const detail = data?.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : null;
+    const err = new Error(data?.error?.message || detail || `${res.status} ${res.statusText}`);
+    Object.assign(err, { status: res.status, code: data?.error?.code || `http_${res.status}`, details: data?.error?.details, data });
+    throw err;
+  }
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Router with per-view lifecycle (timers are cleaned up on navigation).
+// ---------------------------------------------------------------------------
+function makeCtx() {
+  const timers = new Set();
+  const ctx = {
+    alive: true,
+    // Run fn every `ms` (sequentially, never overlapping). fn returning false stops the loop.
+    every(fn, ms) {
+      const schedule = () => {
+        if (!ctx.alive) return;
+        const t = setTimeout(async () => {
+          timers.delete(t);
+          if (!ctx.alive) return;
+          let keep = true;
+          try { keep = (await fn()) !== false; } catch { /* transient: keep polling */ }
+          if (keep) schedule();
+        }, ms);
+        timers.add(t);
+      };
+      schedule();
+    },
+    later(fn, ms) { const t = setTimeout(() => { timers.delete(t); if (ctx.alive) fn(); }, ms); timers.add(t); },
+    dispose() { ctx.alive = false; timers.forEach(clearTimeout); timers.clear(); },
+  };
+  return ctx;
+}
+
+
+// ---------------------------------------------------------------------------
+// #/build  (create / edit workflows: plain English via the NL compiler, or JSON)
+// ---------------------------------------------------------------------------
+const TEMPLATE_WF = {
+  name: "My workflow",
+  description: "Describe what it does",
+  trigger: { type: "webhook", secret: "change-me-secret" },
+  entry: "check",
+  limits: { max_steps: 20, timeout_seconds: 300, max_ai_tokens: 0 },
+  nodes: [
+    { id: "check", type: "condition", params: { left: "{{trigger.body.amount_usd}}", op: "greater_than", right: "100" }, on_true: "gate", on_false: "notify_ok" },
+    { id: "gate", type: "approval", params: { message: "Approve ${{trigger.body.amount_usd}} from {{trigger.body.email}}?" }, next: "notify_ok" },
+    { id: "notify_ok", type: "notify", params: { channel: "email", to: "{{trigger.body.email}}", subject: "Done", message: "Your request was processed." }, next: null },
+  ],
+};
+
+function issuesHtml(v) {
+  if (!v) return "";
+  const items = [...(v.errors || []).map((e) => ["err", e]), ...(v.warnings || []).map((w) => ["warn", w])];
+  if (!items.length) return `<div class="pill ok" style="margin-top:8px">✔ valid: no errors or warnings</div>`;
+  return `<ul class="issues">${items.map(([k, i]) => `<li class="${k === "err" ? "error" : "warn"}"><b class="mono">${esc(i.code)}</b> ${esc(i.message)}</li>`).join("")}</ul>`;
+}
+
+async function viewBuild(el, ctx, _params, query) {
+  let wfId = query.get("id") || null;
+  let def = TEMPLATE_WF;
+  if (wfId) {
+    const wf = await api(`/workflows/${encodeURIComponent(wfId)}`);
+    def = wf.definition;
+  }
+  el.innerHTML = `
+    <div class="page-head"><h1>${wfId ? `Edit <span class="mono">${esc(wfId)}</span>` : "Build a workflow"}</h1></div>
+    <p class="muted">Describe it in plain English and let the AI compiler draft it (only catalog node types; it refuses what the catalog cannot do), or edit the JSON directly. Publishing runs the same validator the engine trusts. Edits to a published workflow never change runs already in flight; each run keeps its own snapshot.</p>
+    <div class="cols" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:18px;align-items:start">
+      <section class="card" style="padding:14px">
+        <h2 style="margin-top:0">1 · Describe it in English <span class="pill">AI compiler</span></h2>
+        <textarea id="nl" rows="7" spellcheck="true" placeholder="When a webhook receives a new order, check if the total amount is over 100 dollars. If it is, ask a manager for approval and then email the customer a confirmation. Otherwise email the confirmation right away."></textarea>
+        <div class="row" style="margin-top:8px"><button id="compile" type="button">Compile to draft</button><span class="muted small">uses the configured model; ~5–20 s</span></div>
+        <div id="nl-out"></div>
+      </section>
+      <section class="card" style="padding:14px">
+        <h2 style="margin-top:0">2 · Workflow JSON</h2>
+        <textarea id="def" rows="24" spellcheck="false" class="mono" style="width:100%;font-size:12px">${esc(JSON.stringify(def, null, 2))}</textarea>
+        <div class="row" style="margin-top:8px">
+          <button id="save" type="button" class="ghost">Save draft &amp; validate</button>
+          <button id="pub" type="button">Save &amp; publish</button>
+          <span id="saved-as" class="muted small">${wfId ? `editing ${esc(wfId)}` : "not saved yet"}</span>
+        </div>
+        <div id="def-out"></div>
+      </section>
+    </div>`;
+  const out = $("#def-out", el), nlOut = $("#nl-out", el);
+
+  async function save() {
+    let body;
+    try { body = JSON.parse($("#def", el).value); } catch (e) { throw Object.assign(new Error("JSON syntax error: " + e.message), { code: "invalid_json" }); }
+    if (wfId) await api(`/workflows/${encodeURIComponent(wfId)}`, { method: "PUT", body });
+    else { const wf = await api("/workflows", { method: "POST", body }); wfId = wf.id; $("#saved-as", el).textContent = `saved as ${wfId}`; history.replaceState(null, "", `#/build?id=${encodeURIComponent(wfId)}`); }
+    return wfId;
+  }
+  $("#save", el).addEventListener("click", async () => {
+    try { const id = await save(); out.innerHTML = issuesHtml(await api(`/workflows/${encodeURIComponent(id)}/validate`, { method: "POST" })); toast("Draft saved"); }
+    catch (e) { out.innerHTML = errBox(e) + issuesHtml(e.data?.error?.details); }
+  });
+  $("#pub", el).addEventListener("click", async () => {
+    try {
+      const id = await save();
+      const r = await api(`/workflows/${encodeURIComponent(id)}/publish`, { method: "POST" });
+      out.innerHTML = issuesHtml({ errors: [], warnings: r.warnings }) + `<p style="margin-top:10px"><b>Published v${esc(r.version)}.</b> <a href="#/workflows/${esc(encodeURIComponent(id))}">Open it to trigger a run →</a></p>`;
+      toast(`Published v${r.version}`);
+    } catch (e) { out.innerHTML = errBox(e) + issuesHtml(e.data?.error?.details); }
+  });
+  $("#compile", el).addEventListener("click", async (ev) => {
+    const b = ev.currentTarget; b.disabled = true; nlOut.innerHTML = `<p class="muted">Compiling…</p>`;
+    try {
+      const r = await api("/workflows/compile", { method: "POST", body: { description: $("#nl", el).value, save: true } });
+      if (r.refusal) {
+        nlOut.innerHTML = `<div class="error-box" style="margin-top:10px"><b>Refused.</b> ${esc(r.refusal.reason)}<div style="margin-top:6px">Missing: ${(r.refusal.missing_capabilities || []).map((m) => `<code>${esc(m)}</code>`).join(" ")}</div></div>`;
+      } else {
+        wfId = r.workflow.id;
+        $("#saved-as", el).textContent = `draft ${wfId} (from the compiler)`;
+        history.replaceState(null, "", `#/build?id=${encodeURIComponent(wfId)}`);
+        $("#def", el).value = JSON.stringify(r.workflow.definition, null, 2);
+        nlOut.innerHTML = `<div class="info-box" style="margin-top:10px">${esc(r.explanation)}</div>
+          ${(r.notes || []).map((n) => `<div class="pill" style="margin-top:6px;white-space:normal">${esc(n)}</div>`).join("")}
+          ${r.webhook ? `<div class="approval-box" style="margin-top:8px">Webhook: <code>POST ${esc(r.webhook.url)}</code> with <code>X-Relay-Secret: ${esc(r.webhook.secret)}</code> (shown once; copy it now)</div>` : ""}
+          <p class="small muted" style="margin-top:6px">Saved as a draft (${esc(r.compile.attempts)} attempt(s), ${esc(r.compile.tokens.prompt + r.compile.tokens.completion)} tokens). Review the JSON, then <b>Save &amp; publish</b>.</p>`;
+      }
+    } catch (e) { nlOut.innerHTML = errBox(e) + issuesHtml(e.data?.error?.details && { errors: e.data.error.details.issues || [] }); }
+    finally { b.disabled = false; }
+  });
+}
+
+const ROUTES = [
+  [/^\/?$/, viewDashboard],
+  [/^\/workflows\/?$/, viewWorkflows],
+  [/^\/build\/?$/, viewBuild],
+  [/^\/workflows\/([^/]+)$/, viewWorkflow],
+  [/^\/runs\/?$/, viewRuns],
+  [/^\/runs\/([^/]+)$/, viewRun],
+  [/^\/approvals\/?$/, viewApprovals],
+  [/^\/world\/?$/, viewWorld],
+];
+let activeCtx = null;
+
+function parseHash() {
+  const h = location.hash.replace(/^#/, "") || "/";
+  const i = h.indexOf("?");
+  return { path: i < 0 ? h : h.slice(0, i), query: new URLSearchParams(i < 0 ? "" : h.slice(i + 1)) };
+}
+const safeDecode = (s) => { try { return decodeURIComponent(s); } catch { return s; } };
+
+async function route() {
+  if (activeCtx) activeCtx.dispose();
+  const ctx = makeCtx();
+  activeCtx = ctx;
+  const { path, query } = parseHash();
+  document.querySelectorAll("#nav a[data-nav]").forEach((a) => {
+    const n = a.dataset.nav;
+    a.classList.toggle("active", n === "/" ? path === "/" || path === "" : path === n || path.startsWith(n + "/"));
+  });
+  const view = $("#view");
+  const el = document.createElement("div");
+  el.innerHTML = `<p class="muted loading">Loading…</p>`;
+  view.replaceChildren(el);
+  window.scrollTo(0, 0);
+  for (const [re, fn] of ROUTES) {
+    const m = path.match(re);
+    if (!m) continue;
+    try {
+      await fn(el, ctx, m.slice(1).map(safeDecode), query);
+    } catch (e) {
+      if (!ctx.alive) return;
+      const retry = !e.status || e.status >= 500;
+      el.innerHTML = errBox(e) + (retry ? `<p class="muted small">Retrying in 3 s…</p>` : "");
+      if (retry) ctx.later(() => { if (activeCtx === ctx) route(); }, 3000);
+    }
+    return;
+  }
+  el.innerHTML = `<div class="empty">Page not found. <a href="#/">Back to dashboard</a></div>`;
+}
+
+async function refreshBadge() {
+  try {
+    const pending = await api("/approvals?status=pending");
+    const b = $("#apr-badge");
+    const n = Array.isArray(pending) ? pending.length : 0;
+    b.textContent = n ? String(n) : "";
+    b.classList.toggle("show", n > 0);
+  } catch { /* views surface errors */ }
+}
+
+async function loadHealth() {
+  try {
+    const r = await fetch("/health");
+    const h = await r.json();
+    healthInfo = [h.status, h.ai_provider && `AI: ${h.ai_provider}`, h.ai_model].filter(Boolean).join(" · ");
+    setConn(r.ok);
+  } catch { setConn(false); }
+}
+
+// ---------------------------------------------------------------------------
+// Shared fragments
+// ---------------------------------------------------------------------------
+const riskTag = (r) => (r.risk_flags && r.risk_flags.length ? ` <span class="pill warn" title="Prompt-injection patterns detected in input">risk</span>` : "");
+
+function runsTable(rows, empty = "No runs yet.") {
+  return table([
+    { label: "Run", render: (r) => `<a class="mono" href="#/runs/${esc(encodeURIComponent(r.run_id))}">${esc(r.run_id)}</a>` },
+    { label: "Workflow", render: (r) => `<a href="#/workflows/${esc(encodeURIComponent(r.workflow_id))}">${esc(r.workflow_id)}</a> <span class="muted small">v${esc(r.workflow_version ?? "—")}</span>` },
+    { label: "Status", render: (r) => badge(r.status) + riskTag(r) },
+    { label: "Trigger", render: (r) => esc(r.trigger_type ?? "—") },
+    { label: "Steps", cls: "num", render: (r) => num(r.steps_executed) },
+    { label: "AI tokens", cls: "num", render: (r) => (r.ai_tokens_used ? num(r.ai_tokens_used) : `<span class="muted">—</span>`) },
+    { label: "Error", render: (r) => (r.error ? `<span class="mono small" style="color:var(--red)" title="${esc(r.error.message)}">${esc(r.error.code)}</span>` : "") },
+    { label: "Created", render: (r) => ago(r.created_at) },
+  ], rows, empty);
+}
+
+function decide(apId, act, decider) {
+  return api(`/approvals/${encodeURIComponent(apId)}/${act}`, { method: "POST", body: { decided_by: decider || "demo-operator" } });
+}
+
+// ---------------------------------------------------------------------------
+// #/  Dashboard
+// ---------------------------------------------------------------------------
+async function viewDashboard(el, ctx) {
+  el.innerHTML = `<div class="page-head"><h1>Dashboard</h1><span class="muted small">auto-refresh 3 s</span></div><div id="dash"></div>`;
+  const body = $("#dash", el);
+  const draw = async () => {
+    const [s, recent] = await Promise.all([api("/stats"), api("/runs?limit=8")]);
+    const by = s.runs_by_status || {};
+    const tiles = RUN_STATUSES.map((k) => `
+      <a class="tile ${stClass(k)}" href="#/runs?status=${esc(k)}"><div class="n">${num(by[k] || 0)}</div><div class="l">${badge(k)}</div></a>`).join("");
+    patch(body, `
+      <section class="tiles">${tiles}
+        <a class="tile ${s.pending_approvals ? "hot" : ""}" href="#/approvals"><div class="n">${num(s.pending_approvals ?? 0)}</div><div class="l">pending approvals</div></a>
+        <a class="tile" href="#/workflows"><div class="n">${num(Array.isArray(s.workflows) ? s.workflows.length : typeof s.workflows === "object" && s.workflows ? (s.workflows.total ?? Object.values(s.workflows).reduce((a, b) => a + (Number(b) || 0), 0)) : (s.workflows ?? 0))}</div><div class="l">workflows</div></a>
+        <div class="tile"><div class="n">${num(s.ai_tokens_total ?? 0)}</div><div class="l">AI tokens used</div></div>
+      </section>
+      <div class="page-head" style="margin:22px 0 10px"><h2 style="margin:0">Recent runs</h2><a href="#/runs" class="small">All runs</a></div>
+      ${runsTable(recent || [], "No runs yet. Open a workflow and trigger one.")}`);
+  };
+  await draw();
+  ctx.every(draw, 3000);
+}
+
+// ---------------------------------------------------------------------------
+// #/workflows
+// ---------------------------------------------------------------------------
+async function viewWorkflows(el) {
+  const rows = await api("/workflows");
+  el.innerHTML = `<div class="page-head"><h1>Workflows</h1><a class="btn" href="#/build">+ New workflow</a></div>${table([
+    { label: "Workflow", render: (w) => `<a href="#/workflows/${esc(encodeURIComponent(w.id))}"><b>${esc(w.name || w.id)}</b></a><div class="muted mono small">${esc(w.id)}</div>` },
+    { label: "Description", render: (w) => `<span class="muted small">${esc(w.description || "")}</span>` },
+    { label: "Status", render: (w) => badge(w.status) + (w.has_unpublished_changes ? ` <span class="pill warn">unpublished edits</span>` : "") },
+    { label: "Version", cls: "num", render: (w) => (w.current_version != null ? `v${esc(w.current_version)}` : "—") },
+    { label: "Trigger", render: (w) => esc(w.trigger_type ?? "—") },
+    { label: "Nodes", cls: "num", render: (w) => num(w.node_count) },
+    { label: "Updated", render: (w) => ago(w.updated_at) },
+  ], rows || [], "No workflows defined.")}`;
+}
+
+// ---------------------------------------------------------------------------
+// #/workflows/<id>
+// ---------------------------------------------------------------------------
+function nodeList(d) {
+  const raw = d?.nodes;
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === "object") return Object.entries(raw).map(([id, n]) => ({ id, ...n }));
+  return [];
+}
+function edgesHtml(n) {
+  const parts = [];
+  if (n.type === "condition" || n.on_true !== undefined || n.on_false !== undefined) {
+    parts.push(`<span class="edge">true → <b>${esc(n.on_true ?? "end")}</b></span>`);
+    parts.push(`<span class="edge">false → <b>${esc(n.on_false ?? "end")}</b></span>`);
+  } else {
+    parts.push(`<span class="edge">next → <b>${esc(n.next ?? "end")}</b></span>`);
+  }
+  return parts.join("");
+}
+
+async function viewWorkflow(el, ctx, [id]) {
+  const [wf, samples] = await Promise.all([api(`/workflows/${encodeURIComponent(id)}`), api("/samples").catch(() => [])]);
+  const d = wf.definition || {};
+  const mine = (Array.isArray(samples) ? samples : []).filter((s) => s && s.workflow === id);
+  const v = wf.validation || { ok: true, errors: [], warnings: [] };
+  const errs = v.errors || [], warns = v.warnings || [];
+  const nodes = nodeList(d);
+  const trig = d.trigger || {};
+  const published = wf.status === "published";
+  const issue = (kind, i) => `<li class="${kind}"><b>${esc(i.code)}</b>${esc(i.message)}${i.node_id ? ` <span class="muted mono small">node ${esc(i.node_id)}</span>` : ""}${i.field ? ` <span class="muted mono small">· ${esc(i.field)}</span>` : ""}</li>`;
+  const versions = (wf.versions || []).map((x) => `v${esc(x.version)}`).join(", ");
+
+  el.innerHTML = `
+    <div class="page-head" style="margin-bottom:4px"><h1>${esc(wf.name || wf.id)} ${badge(wf.status)}${wf.has_unpublished_changes ? ` <span class="pill warn">unpublished edits</span>` : ""}</h1></div>
+    <div class="sub">
+      <span class="mono">${esc(wf.id)}</span>
+      <span>version ${wf.current_version != null ? `v${esc(wf.current_version)}` : "—"}${versions ? ` <span class="small">(${versions})</span>` : ""}</span>
+      <span>trigger <b>${esc(trig.type || wf.trigger_type || "—")}</b>${trig.type === "webhook" ? ` <code>POST /hooks/${esc(wf.id)}</code> + <code>X-Relay-Secret</code>${trig.secret_set ? ` <span class="small">(secret ${esc(trig.secret || "set")})</span>` : ""}` : ""}</span>
+      ${d.limits ? `<span>max_steps <b>${esc(d.limits.max_steps ?? "—")}</b></span>` : ""}
+      <span><a href="#/runs?workflow_id=${esc(encodeURIComponent(wf.id))}">runs of this workflow</a></span>
+    </div>
+    ${wf.description ? `<p style="margin-top:12px;max-width:860px">${esc(wf.description)}</p>` : ""}
+    ${errs.length || warns.length
+      ? `<ul class="issues">${errs.map((i) => issue("error", i)).join("")}${warns.map((i) => issue("warn", i)).join("")}</ul>`
+      : `<div class="box ok-box small"><b>Validation passed</b> — no errors or warnings.</div>`}
+    <div class="cols" style="margin-top:14px">
+      <section>
+        <h2 style="margin-top:0">Nodes <span class="muted small">(${nodes.length})</span></h2>
+        <ol class="nodes">${nodes.map((n) => `
+          <li class="${n.id === d.entry ? "entry" : ""}">
+            <div class="nh"><b class="mono">${esc(n.id)}</b> ${typeTag(n.type)}${n.id === d.entry ? ` <span class="pill info">entry</span>` : ""}${n.requires_approval || n.params?.requires_approval ? ` <span class="pill warn">approval gate</span>` : ""}
+              <span class="edges">${edgesHtml(n)}</span></div>
+            ${n.params !== undefined ? `<details data-k="np-${esc(n.id)}"><summary>params</summary>${json(n.params)}</details>` : ""}
+          </li>`).join("") || `<div class="empty">No nodes.</div>`}</ol>
+      </section>
+      <section class="card">
+        <h2>Trigger a run</h2>
+        <label class="field">Sample payload
+          <select id="sample"><option value="">Custom input</option>${mine.map((s) => `<option value="${esc(s.id)}">${esc(s.id)} — ${esc(String(s.note || "").slice(0, 70))}</option>`).join("")}</select>
+        </label>
+        <div id="sample-note" class="small muted" style="margin:6px 0"></div>
+        <label class="field" style="margin-top:6px">Input JSON
+          <textarea id="input" rows="11" spellcheck="false">{}</textarea>
+        </label>
+        <div class="row">
+          <button id="trigger" type="button" ${published ? "" : "disabled"}>Trigger run</button>
+          <button id="publish" type="button" class="ghost">${published && !wf.has_unpublished_changes ? "Publish again" : "Publish"}</button>
+          <a class="btn ghost" href="#/build?id=${esc(encodeURIComponent(wf.id))}">Edit</a>
+          ${published ? "" : `<span class="muted small">Publish before triggering.</span>`}
+        </div>
+        <div id="pub-out"></div>
+      </section>
+    </div>
+    <details class="block" data-k="def"><summary>Definition JSON</summary>${json(d)}</details>`;
+
+  const ta = $("#input", el), note = $("#sample-note", el);
+  $("#sample", el).addEventListener("change", (e) => {
+    const s = mine.find((x) => x.id === e.target.value);
+    ta.value = JSON.stringify(s ? s.body ?? {} : {}, null, 2);
+    note.innerHTML = s ? `${esc(s.note || "")}${s.expected !== undefined ? `<br>expected: <code>${esc(typeof s.expected === "string" ? s.expected : JSON.stringify(s.expected))}</code>` : ""}` : "";
+  });
+  $("#trigger", el).addEventListener("click", async (e) => {
+    let input;
+    try { input = JSON.parse(ta.value || "{}"); } catch (err) { toast(`Invalid JSON: ${err.message}`, "err"); return; }
+    e.currentTarget.disabled = true;
+    try {
+      const r = await api(`/workflows/${encodeURIComponent(id)}/trigger`, { method: "POST", body: { input } });
+      toast(`Run ${r.run_id || r.id} queued`);
+      location.hash = `#/runs/${encodeURIComponent(r.run_id || r.id)}`;
+    } catch (err) { toast(`${err.code}: ${err.message}`, "err"); $("#trigger", el).disabled = false; }
+  });
+  $("#publish", el).addEventListener("click", async () => {
+    const out = $("#pub-out", el);
+    try {
+      const r = await api(`/workflows/${encodeURIComponent(id)}/publish`, { method: "POST" });
+      toast(`Published v${r.version}`);
+      if (ctx.alive) route();
+    } catch (err) {
+      toast(`${err.code}: ${err.message}`, "err");
+      out.innerHTML = errBox(err) + (err.details ? json(err.details) : "");
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// #/runs
+// ---------------------------------------------------------------------------
+async function viewRuns(el, ctx, _p, query) {
+  let status = query.get("status") || "", wfId = query.get("workflow_id") || "";
+  const wfs = await api("/workflows").catch(() => []);
+  el.innerHTML = `
+    <div class="page-head"><h1>Runs</h1>
+      <div class="row" style="margin:0">
+        <select id="f-wf" aria-label="Workflow filter"><option value="">All workflows</option>${(wfs || []).map((w) => `<option value="${esc(w.id)}">${esc(w.id)}</option>`).join("")}</select>
+        <select id="f-st" aria-label="Status filter"><option value="">All statuses</option>${RUN_STATUSES.map((s) => `<option value="${esc(s)}">${esc(s.replace(/_/g, " "))}</option>`).join("")}</select>
+        <span class="muted small">auto-refresh 3 s</span>
+      </div>
+    </div>
+    <div id="runs-body"></div>`;
+  const fwf = $("#f-wf", el), fst = $("#f-st", el), body = $("#runs-body", el);
+  fwf.value = wfId; fst.value = status;
+  if (wfId && fwf.value !== wfId) { fwf.insertAdjacentHTML("beforeend", `<option value="${esc(wfId)}">${esc(wfId)}</option>`); fwf.value = wfId; }
+  const draw = async () => {
+    const q = new URLSearchParams({ limit: "100" });
+    if (wfId) q.set("workflow_id", wfId);
+    if (status) q.set("status", status);
+    const rows = await api(`/runs?${q}`);
+    patch(body, runsTable(rows || [], "No runs match these filters."));
+  };
+  const onFilter = () => {
+    wfId = fwf.value; status = fst.value;
+    const q = new URLSearchParams();
+    if (wfId) q.set("workflow_id", wfId);
+    if (status) q.set("status", status);
+    const qs = q.toString();
+    try { history.replaceState(null, "", `#/runs${qs ? "?" + qs : ""}`); } catch { /* ignore */ }
+    draw().catch((e) => patch(body, errBox(e)));
+  };
+  fwf.addEventListener("change", onFilter);
+  fst.addEventListener("change", onFilter);
+  await draw();
+  ctx.every(draw, 3000);
+}
+
+// ---------------------------------------------------------------------------
+// #/runs/<id>  (centrepiece of the demo)
+// ---------------------------------------------------------------------------
+function gatePill(s) {
+  const g = s.gate;
+  if (!g || !g.requires_approval) return "";
+  if (g.satisfied_by) return `<span class="pill ok" title="checked ${esc(g.checked_at || "")}">gate: approved (${esc(g.satisfied_by)})</span>`;
+  if (s.status === "waiting" || s.status === "running") return `<span class="pill warn">gate: awaiting approval</span>`;
+  return `<span class="pill bad">gate: NO APPROVAL — refused</span>`;
+}
+
+function stepCard(s, nodesById) {
+  const attempts = Array.isArray(s.attempts) ? s.attempts : [];
+  const meta = s.meta || {};
+  const k = `step-${s.sequence}`;
+  let branch = "";
+  if (s.type === "condition" && s.output && typeof s.output === "object" && "result" in s.output) {
+    const res = !!s.output.result;
+    const n = nodesById.get(s.node_id) || {};
+    const target = res ? n.on_true : n.on_false;
+    branch = `<span class="pill info">result ${res ? "true" : "false"} → ${res ? "on_true" : "on_false"}${target !== undefined ? ` (${esc(target ?? "end")})` : ""}</span>`;
+  }
+  const tok = s.tokens ? `<span class="pill violet" title="prompt + completion">${num(s.tokens.prompt)} + ${num(s.tokens.completion)} = ${num(s.tokens.total)} tok</span>` : "";
+  const replayed = attempts.some((a) => a && a.replayed) || meta.replayed === true;
+  const replayPill = replayed ? `<span class="pill warn" title="The mock world recognised the Idempotency-Key and did not execute twice">replayed by world</span>` : "";
+  const httpPill = meta.http_status != null ? `<span class="pill">HTTP ${esc(meta.http_status)}</span>` : "";
+  const repaired = meta.repaired ? `<span class="pill warn">output repaired</span>` : "";
+  const redCount = (meta.guardrails?.redactions || []).reduce((a, r) => a + (Number(r.count) || 0), 0);
+  const redPill = redCount ? `<span class="pill info">${esc(redCount)} redaction${redCount === 1 ? "" : "s"}</span>` : "";
+  const lastAttempt = attempts[attempts.length - 1];
+
+  const calls = Array.isArray(meta.ai_calls) && meta.ai_calls.length ? `<h4>Model calls${meta.provider || meta.model ? ` <span class="muted" style="text-transform:none;letter-spacing:0">· ${esc([meta.provider, meta.model].filter(Boolean).join(" / "))}</span>` : ""}</h4>${meta.ai_calls.map((c, i) => `
+      <div class="call ${c.valid ? "ok" : "bad"}">
+        <div class="ch"><b>attempt ${esc(c.attempt ?? i + 1)}</b>
+          <span class="pill ${c.valid ? "ok" : "bad"}">${c.valid ? "VALID" : "INVALID"}</span>
+          <span class="muted">${esc(c.model || "")} · ${num(c.prompt_tokens)} + ${num(c.completion_tokens)} tok · ${esc(dur(c.latency_ms))}</span></div>
+        ${Array.isArray(c.errors) && c.errors.length ? `<ul>${c.errors.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
+        <details data-k="${k}-raw-${i}"><summary>raw_text</summary><pre class="json" data-s="${k}-raw-${i}">${esc(c.raw_text ?? "")}</pre></details>
+      </div>`).join("")}` : "";
+
+  const g = meta.guardrails;
+  const guard = g && ((g.redactions || []).length || (g.flags || []).length) ? `<h4>Guardrails</h4>
+      ${(g.redactions || []).length ? table([
+        { label: "Field", render: (r) => `<span class="mono">${esc(r.field)}</span>` },
+        { label: "Kind", render: (r) => esc(r.kind) },
+        { label: "Count", cls: "num", render: (r) => num(r.count) },
+      ], g.redactions) : ""}
+      ${(g.flags || []).length ? `<div style="margin-top:8px">${json(g.flags)}</div>` : ""}` : "";
+  const inRisk = Array.isArray(meta.input_risk_flags) && meta.input_risk_flags.length ? `<h4>Input risk flags</h4>${json(meta.input_risk_flags)}` : "";
+
+  const sumParts = ["input", "output", "attempts"];
+  if (s.idempotency_key) sumParts.unshift("idempotency key");
+  if (calls) sumParts.push("model calls");
+  if (guard) sumParts.push("guardrails");
+
+  return `
+    <li class="step ${stClass(s.status)}">
+      <div class="step-head">
+        <span class="seq">#${esc(s.sequence)}</span>
+        <span class="nid">${esc(s.node_id)}</span>
+        ${typeTag(s.type)}
+        ${badge(s.status)}
+        <span class="step-meta">attempt ${esc(s.attempt ?? attempts.length ?? 1)} · ${esc(s.duration_ms != null ? dur(s.duration_ms) : TERMINAL.has(s.status) ? "—" : "in progress")} · started ${time(s.started_at)}</span>
+      </div>
+      <div class="pills">${branch}${tok}${gatePill(s)}${replayPill}${httpPill}${repaired}${redPill}${s.approval_id ? `<span class="pill mono">${esc(s.approval_id)}</span>` : ""}</div>
+      ${s.error ? `<div class="box error-box small" style="margin:8px 0 0"><b class="mono">${esc(s.error.code || "error")}</b> <span class="msg">${esc(s.error.message || "")}</span></div>` : ""}
+      ${s.status === "sleeping" && s.wake_at ? `<div class="muted small" style="margin-top:6px">sleeping until ${time(s.wake_at)}</div>` : ""}
+      ${s.status === "retrying" ? `<div class="muted small" style="margin-top:6px">retrying${s.next_attempt_at ? ` at ${time(s.next_attempt_at)}` : ""}${lastAttempt?.retry_in_s != null ? ` (backoff ${esc(lastAttempt.retry_in_s)} s)` : ""}${lastAttempt?.error ? ` · last error: ${esc(typeof lastAttempt.error === "string" ? lastAttempt.error : lastAttempt.error.message || JSON.stringify(lastAttempt.error))}` : ""}</div>` : ""}
+      <details data-k="${k}"><summary>${esc(sumParts.join(" · "))}</summary>
+        ${s.idempotency_key ? `<p class="small" style="margin:6px 0">Idempotency-Key: <code>${esc(s.idempotency_key)}</code></p>` : ""}
+        <div class="cols-even"><div><h4>Resolved input</h4><div>${json(s.input)}</div></div><div><h4>Output</h4>${json(s.output)}</div></div>
+        <h4>Attempts</h4>${json(attempts)}
+        ${calls}${guard}${inRisk}
+      </details>
+    </li>`;
+}
+
+function runHtml(r, decider) {
+  const approvals = Array.isArray(r.approvals) ? r.approvals : [];
+  const pending = approvals.find((a) => a.status === "pending");
+  const steps = Array.isArray(r.steps) ? [...r.steps].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0)) : [];
+  const nodesById = new Map(nodeList(r.definition_snapshot).map((n) => [n.id, n]));
+  const limits = r.limits || {};
+  const runMs = r.started_at ? (toDate(r.finished_at) || new Date()) - toDate(r.started_at) : null;
+  const flags = Array.isArray(r.risk_flags) ? r.risk_flags : [];
+  const terminal = TERMINAL.has(r.status);
+
+  return `
+    <div class="page-head" style="margin-bottom:4px">
+      <h1><span class="mono" style="font-size:19px">${esc(r.run_id || r.id)}</span> ${badge(r.status)}${r.cancel_requested && !terminal ? ` <span class="pill warn">cancel requested</span>` : ""}</h1>
+      <div class="row" style="margin:0">
+        ${!terminal ? `<span class="muted small">live · polling 1.5 s</span><button type="button" class="ghost" data-act="cancel" ${r.cancel_requested ? "disabled" : ""}>Cancel run</button>` : ""}
+      </div>
+    </div>
+    <div class="sub">
+      <span>workflow <a href="#/workflows/${esc(encodeURIComponent(r.workflow_id))}">${esc(r.workflow_id)}</a> <span class="small">v${esc(r.workflow_version ?? "—")}</span></span>
+      <span>trigger <b>${esc(r.trigger_type ?? "—")}</b></span>
+      <span>steps <b>${num(r.steps_executed ?? 0)}</b> / ${num(limits.max_steps ?? "—")}</span>
+      <span>AI tokens <b>${num(r.ai_tokens_used ?? 0)}</b>${limits.max_ai_tokens != null ? ` / ${num(limits.max_ai_tokens)}` : ""}</span>
+      <span>started ${time(r.started_at)}${r.finished_at ? ` · finished ${time(r.finished_at)}` : ""}${runMs != null && !isNaN(runMs) ? ` · ${esc(dur(runMs))}` : ""}</span>
+      ${!terminal && r.current_node_id ? `<span>at node <b class="mono">${esc(r.current_node_id)}</b></span>` : ""}
+      ${r.ended_reason ? `<span>ended: <b>${esc(r.ended_reason)}</b></span>` : ""}
+    </div>
+
+    ${flags.length ? `<div class="box risk-box">
+      <b class="t">Prompt-injection patterns detected in the trigger payload</b>
+      <span style="color:var(--text)">The text below is shown escaped, never executed. Approval gates are enforced by the engine, so nothing the AI outputs can skip them.</span>
+      <ul class="flags">${flags.map((f) => `<li><code>${esc(f.rule)}</code> in <span class="mono">${esc(f.field)}</span>: <q>${esc(f.excerpt)}</q></li>`).join("")}</ul>
+    </div>` : ""}
+
+    ${r.error ? `<div class="box error-box"><b class="t mono">${esc(r.error.code || "error")}${r.error.node_id ? ` <span style="font-weight:500">at node ${esc(r.error.node_id)}</span>` : ""}</b><div class="msg">${esc(r.error.message || "")}</div></div>` : ""}
+
+    ${pending ? `<div class="box approval-box">
+      <div class="lbl">Waiting for approval · node <span class="mono">${esc(pending.node_id)}</span></div>
+      <div class="msg">${esc(pending.message)}</div>
+      <div class="row" style="margin-bottom:0">
+        <input id="decider" placeholder="your name" value="${esc(decider)}" aria-label="Decider name" style="width:200px">
+        <button type="button" class="ok" data-act="approve" data-id="${esc(pending.id)}">Approve</button>
+        <button type="button" class="danger" data-act="reject" data-id="${esc(pending.id)}">Reject</button>
+        <span class="muted mono small">${esc(pending.id)}</span>
+      </div>
+    </div>` : ""}
+
+    <h2>Step timeline <span class="muted small">(${steps.length})</span></h2>
+    ${steps.length ? `<ol class="timeline">${steps.map((s) => stepCard(s, nodesById)).join("")}</ol>` : `<div class="empty">No steps yet — the run is ${esc(String(r.status || "queued").replace(/_/g, " "))}.</div>`}
+
+    ${approvals.length ? `<h2>Approvals</h2>${table([
+      { label: "Approval", render: (a) => `<span class="mono">${esc(a.id)}</span>` },
+      { label: "Node", render: (a) => `<span class="mono">${esc(a.node_id)}</span>` },
+      { label: "Status", render: (a) => badge(a.status) },
+      { label: "Decided by", render: (a) => esc(a.decided_by || "—") },
+      { label: "Decided", render: (a) => time(a.decided_at) },
+      { label: "Note", render: (a) => esc(a.decision_note || "") },
+    ], approvals)}` : ""}
+
+    <details class="block" data-k="run-input"><summary>Trigger input</summary>${json(r.input)}</details>
+    <details class="block" data-k="run-def"><summary>Definition snapshot (what this run executes)</summary>${json(r.definition_snapshot)}</details>`;
+}
+
+async function viewRun(el, ctx, [id]) {
+  const path = `/runs/${encodeURIComponent(id)}`;
+  let run = await api(path);
+  let lastSig = "";
+  const draw = (r, force = false) => {
+    const sig = JSON.stringify(r);
+    if (!force && sig === lastSig) return;
+    lastSig = sig;
+    run = r;
+    patch(el, runHtml(r, getDecider()));
+  };
+  draw(run, true);
+
+  el.addEventListener("input", (e) => { if (e.target.id === "decider") setDecider(e.target.value); });
+  el.addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-act]");
+    if (!b || !el.contains(b)) return;
+    const act = b.dataset.act;
+    b.disabled = true;
+    try {
+      if (act === "approve" || act === "reject") {
+        const who = ($("#decider", el)?.value || "").trim() || "demo-operator";
+        setDecider(who);
+        await decide(b.dataset.id, act, who);
+        toast(act === "approve" ? `Approved by ${who}` : `Rejected by ${who}`);
+        refreshBadge();
+      } else if (act === "cancel") {
+        await api(`${path}/cancel`, { method: "POST" });
+        toast("Cancel requested");
+      }
+      if (ctx.alive) { draw(await api(path)); ensurePolling(); }
+    } catch (err) {
+      toast(`${err.code || "error"}: ${err.message}`, "err");
+      b.disabled = false;
+    }
+  });
+
+  let polling = false;
+  function ensurePolling() {
+    if (polling || TERMINAL.has(run.status)) return;
+    polling = true;
+    ctx.every(async () => {
+      const r = await api(path);
+      draw(r);
+      if (TERMINAL.has(r.status)) { polling = false; refreshBadge(); return false; }
+      return true;
+    }, 1500);
+  }
+  ensurePolling();
+}
+
+// ---------------------------------------------------------------------------
+// #/approvals
+// ---------------------------------------------------------------------------
+async function viewApprovals(el, ctx) {
+  el.innerHTML = `
+    <div class="page-head"><h1>Pending approvals</h1>
+      <div class="row" style="margin:0"><label class="small muted" for="decider">Deciding as</label>
+        <input id="decider" value="${esc(getDecider())}" style="width:200px"><span class="muted small">refresh 4 s</span></div>
+    </div>
+    <div id="apr-body"></div>`;
+  const body = $("#apr-body", el), dec = $("#decider", el);
+  dec.addEventListener("input", () => setDecider(dec.value));
+  let lastSig = "";
+  const draw = async (force = false) => {
+    const rows = await api("/approvals?status=pending");
+    const sig = JSON.stringify(rows);
+    if (!force && sig === lastSig) return;
+    lastSig = sig;
+    patch(body, (rows || []).length ? `<ul class="approvals">${rows.map((a) => `
+      <li>
+        <div class="msg">${esc(a.message)}</div>
+        <div class="muted small" style="margin-top:3px">${esc(a.workflow_id)} · node <span class="mono">${esc(a.node_id)}</span> · run <a class="mono" href="#/runs/${esc(encodeURIComponent(a.run_id))}">${esc(a.run_id)}</a> · requested ${ago(a.created_at)} · <span class="mono">${esc(a.id)}</span></div>
+        <div class="row" style="margin-bottom:0">
+          <button type="button" class="ok" data-act="approve" data-id="${esc(a.id)}">Approve</button>
+          <button type="button" class="danger" data-act="reject" data-id="${esc(a.id)}">Reject</button>
+          <a class="small" href="#/runs/${esc(encodeURIComponent(a.run_id))}">Open run trace</a>
+        </div>
+      </li>`).join("")}</ul>` : `<div class="empty">No pending approvals.</div>`);
+  };
+  body.addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-act]");
+    if (!b) return;
+    b.disabled = true;
+    const who = dec.value.trim() || "demo-operator";
+    try {
+      const r = await decide(b.dataset.id, b.dataset.act, who);
+      toast(`${b.dataset.act === "approve" ? "Approved" : "Rejected"} by ${who}${r?.run_status ? ` · run now ${r.run_status}` : ""}`);
+      refreshBadge();
+      await draw(true);
+    } catch (err) { toast(`${err.code || "error"}: ${err.message}`, "err"); b.disabled = false; }
+  });
+  await draw(true);
+  ctx.every(draw, 4000);
+}
+
+// ---------------------------------------------------------------------------
+// #/world  (mock external world: idempotency ledger)
+// ---------------------------------------------------------------------------
+async function viewWorld(el, ctx) {
+  el.innerHTML = `
+    <div class="page-head"><h1>Mock world</h1><span class="muted small">refresh 2 s</span></div>
+    <p class="muted" style="margin-top:-6px;max-width:860px">The simulated external system that side-effect steps call. Every request carries an Idempotency-Key; a repeated key is recorded as a replay instead of executing twice.</p>
+    <div class="row">
+      <button type="button" class="ok" data-cfg='{"mode":"ok","fail_rate":0,"latency_ms":0}'>Healthy</button>
+      <button type="button" class="danger" data-cfg='{"mode":"down"}'>Take down</button>
+      <button type="button" class="ghost" data-cfg='{"fail_rate":0.3}'>Flaky 30%</button>
+      <button type="button" class="ghost" data-cfg='{"latency_ms":3000}'>Slow 3s</button>
+      <span class="spacer"></span>
+      <button type="button" class="ghost" id="reset">Reset ledger</button>
+    </div>
+    <div id="world-body"></div>`;
+  const body = $("#world-body", el);
+  let cfg = null;
+  const cfgHtml = () => {
+    if (!cfg) return `<div class="tile"><div class="n">?</div><div class="l">config unavailable</div></div>`;
+    const mode = String(cfg.mode ?? "?");
+    const st = mode === "down" ? "down" : (Number(cfg.fail_rate) > 0 ? "flaky" : "ok");
+    const label = st === "flaky" ? `${mode} · flaky` : mode;
+    return `<div class="tile"><div class="l">mode</div><div style="margin-top:6px"><span class="badge ${stClass(st)}">${esc(label)}</span></div></div>
+      <div class="tile"><div class="l">fail_rate</div><div class="n" style="font-size:20px">${esc(Math.round((Number(cfg.fail_rate) || 0) * 100))}%</div></div>
+      <div class="tile"><div class="l">latency</div><div class="n" style="font-size:20px">${esc(dur(Number(cfg.latency_ms) || 0))}</div></div>`;
+  };
+  const draw = async () => {
+    const [ledger, c] = await Promise.all([
+      api("/world/ledger"),
+      api("/world/config", { method: "POST", body: {} }).catch(() => cfg),
+    ]);
+    cfg = c || cfg;
+    const entries = Array.isArray(ledger?.entries) ? [...ledger.entries] : [];
+    entries.sort((a, b) => (b.seq ?? 0) - (a.seq ?? 0));
+    const isErr = (e) => typeof e.status === "number" && e.status >= 300;
+    const replayed = entries.filter((e) => e.replayed).length;
+    const executed = entries.filter((e) => !e.replayed && !isErr(e)).length;
+    const failed = entries.filter((e) => !e.replayed && isErr(e)).length;
+    patch(body, `
+      <div class="world-state tiles" style="margin-top:6px">${cfgHtml()}
+        <div class="tile st-succeeded"><div class="l">executed</div><div class="n" style="color:var(--green)">${num(executed)}</div></div>
+        <div class="tile"><div class="l">replays absorbed</div><div class="n" style="color:var(--amber)">${num(replayed)}</div></div>
+        ${failed ? `<div class="tile"><div class="l">rejected</div><div class="n" style="color:var(--red)">${num(failed)}</div></div>` : ""}
+        <div class="tile"><div class="l">ledger entries</div><div class="n">${num(ledger?.count ?? entries.length)}</div></div>
+      </div>
+      <h2>Ledger <span class="muted small">(newest first)</span></h2>
+      ${table([
+        { label: "#", cls: "num", render: (e) => esc(e.seq) },
+        { label: "Time", render: (e) => time(e.ts) },
+        { label: "Action", render: (e) => `<b class="mono">${esc(e.action)}</b>` },
+        { label: "Idempotency-Key", render: (e) => (e.idempotency_key ? `<span class="mono small">${esc(e.idempotency_key)}</span>` : `<span class="muted">none</span>`) },
+        { label: "Result", render: (e) => (e.replayed ? `<span class="pill warn">replayed</span>` : `<span class="pill ${isErr(e) ? "bad" : "ok"}">${esc(e.status ?? "ok")}</span>`) },
+        { label: "Payload", render: (e) => `<code class="trunc" title="${esc(JSON.stringify(e.payload))}">${esc(JSON.stringify(e.payload))}</code>` },
+      ], entries, "Ledger is empty. Side-effect steps will appear here.")}`);
+  };
+  el.addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-cfg], #reset");
+    if (!b) return;
+    try {
+      if (b.id === "reset") { await api("/world/reset", { method: "POST" }); toast("Ledger reset"); }
+      else { cfg = await api("/world/config", { method: "POST", body: JSON.parse(b.dataset.cfg) }); toast(`World: ${b.textContent.trim()}`); }
+      await draw();
+    } catch (err) { toast(`${err.code || "error"}: ${err.message}`, "err"); }
+  });
+  await draw();
+  ctx.every(draw, 2000);
+}
+
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+$("#token-btn").addEventListener("click", () => {
+  const t = prompt("Relay API token (sent as Authorization: Bearer …)", getToken());
+  if (t && t.trim()) { setToken(t.trim()); toast("Token saved"); route(); refreshBadge(); }
+});
+window.addEventListener("hashchange", route);
+loadHealth();
+route();
+refreshBadge();
+setInterval(refreshBadge, 4000);
+</script>
+</body>
+</html>

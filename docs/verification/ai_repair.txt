@@ -1,0 +1,22 @@
+run run_1a1b702d1098420b173cd status failed error {'code': 'ai_output_invalid', 'message': 'AI output failed schema validation after 2 attempts: summary: "Earbuds arrived with a cracked case and left bud won\'t pair." is too long', 'node_id': 'extract'}
+  model call #1: INVALID  errors=["summary: 'Customer received earbuds with a cracked charging case and a left bud that does not pair. They express disappointment with the packaging and are inquiring about options for a replacement or repair.' is too long"]
+    raw: {"ticket_code":"TKT-0001","summary":"Customer received earbuds with a cracked charging case and a left bud that does not pair. They express disappointment with the packaging and are inquiring about op
+  model call #2: INVALID  errors=['summary: "Earbuds arrived with a cracked case and left bud won\'t pair." is too long']
+    raw: {"ticket_code":"TKT-0001","summary":"Earbuds arrived with a cracked case and left bud won't pair."}
+  repaired: False | step output: None | tokens: {'prompt': 638, 'completion': 74, 'total': 712}
+
+=== second run (short message) ===
+run run_1a1b7030a173e36f57568 status failed error {'code': 'ai_output_invalid', 'message': "AI output failed schema validation after 2 attempts: summary: 'Speaker broke after two days; requesting refund.' is too long", 'node_id': 'extract'}
+  model call #1: INVALID  errors=["summary: 'Customer reported that their speaker malfunctioned after only two days of use and is requesting a refund.' is too long"]
+    raw: {"ticket_code":"TKT-0001","summary":"Customer reported that their speaker malfunctioned after only two days of use and is requesting a refund."}
+  model call #2: INVALID  errors=["summary: 'Speaker broke after two days; requesting refund.' is too long"]
+    raw: {"ticket_code":"TKT-0001","summary":"Speaker broke after two days; requesting refund."}
+  repaired: False | step output: None | tokens: {'prompt': 558, 'completion': 54, 'total': 612}
+
+=== after repair feedback names the violated rule (summary maxLength 60, workflow v2) ===
+run run_1a1b703fff31b56b02e28 status succeeded path extract -> post
+  model call #1: INVALID  errors=["summary: 'Customer received earbuds with a cracked charging case and a left bud that does not pair. They express disappointment with the packaging and are inquiring about options for a replacement or repair.' is too long (rule maxLength=60, got 197 chars)"]
+    raw: {"ticket_code":"TKT-0001","summary":"Customer received earbuds with a cracked charging case and a left bud that does not pair. They express disappointment with the packaging and are inquiring about op
+  model call #2: VALID  errors=[]
+    raw: {"ticket_code":"TKT-0001","summary":"Earbuds arrived with a cracked case and left bud won't pair."}
+  repaired: True | step output: {'summary': "Earbuds arrived with a cracked case and left bud won't pair.", 'ticket_code': 'TKT-0001'} | tokens: {'prompt': 649, 'completion': 74, 'total': 723}

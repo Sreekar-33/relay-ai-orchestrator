@@ -1,0 +1,23 @@
+[21:20:38] 1) world DOWN mid-run
+[21:20:46] while down:
+run run_1a1b6b465fdad75362b1a status=running steps_executed=2 error=None
+  #1   is_large           condition     succeeded  attempts=['succeeded']
+  #2   auto_ok            notify        retrying   attempts=['transient_error', 'transient_error', 'transient_error']  key=run_1a1b6b465fdad75362b1a:auto_ok:2
+[21:20:46] restoring the world
+[21:20:54] final: succeeded
+run run_1a1b6b465fdad75362b1a status=succeeded steps_executed=2 error=None
+  #1   is_large           condition     succeeded  attempts=['succeeded']
+  #2   auto_ok            notify        succeeded  attempts=['transient_error', 'transient_error', 'transient_error', 'succeeded']  key=run_1a1b6b465fdad75362b1a:auto_ok:2
+[21:20:54] 2) flaky world fail_rate=0.3, 5 runs
+[21:20:54] run_1a1b6b4a68025352f6473 -> succeeded
+[21:20:57] run_1a1b6b4a69413d6e4b680 -> succeeded
+[21:20:57] run_1a1b6b4a6a649ffd57329 -> succeeded
+[21:20:57] run_1a1b6b4a6ba93ca379b70 -> succeeded
+[21:20:57] run_1a1b6b4a6cdc14660b942 -> succeeded
+Ledger entries checked: 5 (executed: 5, replays absorbed: 0, rejected: 0)
+  email.send: 5 executed
+
+PASS: every side effect executed exactly once.
+[21:20:57] 3) runaway poll loop vs the step cap
+[21:21:01] final: failed
+steps_executed 12 error {'code': 'max_steps_exceeded', 'message': "Run stopped by step cap: limits.max_steps=12 reached before executing node 'check_order' (would be step 13)", 'node_id': 'check_order'}
