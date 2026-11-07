@@ -9,6 +9,7 @@ A crash anywhere resumes from persisted state; a crash between 2 and 3 re-sends 
 from __future__ import annotations
 
 import enum
+import ipaddress
 import json
 import logging
 import os
@@ -16,7 +17,7 @@ import re
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import httpx
 
@@ -76,6 +77,21 @@ class WorldClient:
         self.aliases = settings.world_url_aliases
         self.timeout = settings.http_timeout_s
         self.client = client or httpx.Client()
+        # SSRF guard: workflow authors (and the NL compiler) choose http_request URLs, so only allow-listed hosts are
+        # reachable. The mock world (+ its aliases) is always allowed; RELAY_HTTP_ALLOWED_HOSTS adds more ("*" = any).
+        own = {urlsplit(u).hostname for u in (self.base, *self.aliases)}
+        self.allowed = {h for h in own if h} | set(getattr(settings, "http_allowed_hosts", ()) or ())
+
+    def check_url(self, url: str) -> None:
+        host = (urlsplit(url).hostname or "").lower()
+        try:
+            ip = ipaddress.ip_address(host)
+            if ip.is_link_local or ip.is_multicast or ip.is_unspecified:   # e.g. 169.254.169.254 cloud metadata
+                raise PermanentError("url_not_allowed", f"Requests to {host} are blocked (link-local/metadata address)")
+        except ValueError:
+            pass
+        if "*" not in self.allowed and host not in self.allowed:
+            raise PermanentError("url_not_allowed", f"Host '{host}' is not in the http_request allowlist (set RELAY_HTTP_ALLOWED_HOSTS)")
 
     def url(self, path: str) -> str:
         return self.base + path
@@ -92,8 +108,10 @@ class WorldClient:
         hdrs = {str(k): str(v) for k, v in (headers or {}).items() if str(k).lower() not in {"idempotency-key", "host", "content-length"}}
         if idempotency_key:
             hdrs["Idempotency-Key"] = idempotency_key
+        target = self.rewrite(url)
+        self.check_url(target)
         try:
-            r = self.client.request(method, self.rewrite(url), json=json_body if method != "GET" else None, headers=hdrs, timeout=self.timeout)
+            r = self.client.request(method, target, json=json_body if method != "GET" else None, headers=hdrs, timeout=self.timeout)
         except httpx.TimeoutException:
             raise TransientError("timeout", f"{method} {url} timed out after {self.timeout}s")
         except httpx.TransportError as exc:

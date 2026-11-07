@@ -132,3 +132,15 @@ def test_cancel_while_sleeping_is_prompt(env):
     assert S.cancel_run(env.db, rid)["cancel_requested"] is True
     assert drive(eng, env.db, rid, timeout=4) == "cancelled"
     assert [e["action"] for e in env.world.ledger()] == ["email.send"]
+
+
+def test_http_request_is_restricted_to_allowlisted_hosts(env):
+    """SSRF guard: authored/compiled workflows cannot reach arbitrary or metadata hosts."""
+    from relay.engine import WorldClient
+    from relay.errors import PermanentError
+    w = WorldClient(env.settings)
+    w.check_url(w.rewrite("http://localhost:9210/orders/ord_2001"))          # mock world (via alias) is allowed
+    for bad in ("http://169.254.169.254/latest/meta-data/", "http://internal-admin:8080/", "https://evil.example.com/x"):
+        with pytest.raises(PermanentError) as e:
+            w.check_url(bad)
+        assert e.value.code == "url_not_allowed"
