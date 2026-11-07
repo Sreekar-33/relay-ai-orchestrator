@@ -119,7 +119,7 @@ class NLCompiler:
         wf["name"] = str(wf.get("name") or "Compiled workflow")
         trig = wf.get("trigger") if isinstance(wf.get("trigger"), dict) else {"type": "manual"}
         if trig.get("type") == "webhook":
-            trig["secret"] = f"whsec_{secrets.token_hex(8)}"
+            trig["secret"] = f"whsec_{secrets.token_urlsafe(24)}"  # 192-bit secret
             notes.append("Generated a new webhook secret (returned once).")
         wf["trigger"] = trig
         nodes = [n for n in (wf.get("nodes") or []) if isinstance(n, dict) and isinstance(n.get("id"), str)]
