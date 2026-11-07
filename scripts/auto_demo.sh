@@ -32,7 +32,20 @@ narrate() {
     speak_sentence "$line"; sleep 0.35
   done
 }
-show() { [[ -n "${DRY:-}" ]] && { echo "   [open] $1"; return; }; open "$1"; sleep 1.5; }
+# Navigate ONE browser tab (the active tab of the front window) instead of opening new tabs.
+show() {
+  [ -n "${DRY:-}" ] && { echo "   [open] $1"; return; }
+  local u="$1" b
+  for b in "Google Chrome" "Brave Browser" "Microsoft Edge" "Arc"; do
+    if pgrep -xq "$b" 2>/dev/null || pgrep -fq "/$b.app/" 2>/dev/null; then
+      osascript -e "tell application \"$b\" to set URL of active tab of front window to \"$u\"" >/dev/null 2>&1 && { sleep 1.5; return; }
+    fi
+  done
+  if pgrep -xq Safari 2>/dev/null; then
+    osascript -e "tell application \"Safari\" to set URL of current tab of front window to \"$u\"" >/dev/null 2>&1 && { sleep 1.5; return; }
+  fi
+  open "$u"; sleep 1.5   # fallback
+}
 body() { python3 -c "import json;print(json.dumps(next(json.loads(l)['body'] for l in open('data/sample_payloads.jsonl') if l.strip() and json.loads(l)['id']=='$1')))"; }
 hook() { curl -s -X POST "$API/hooks/wf_support_triage" -H 'X-Relay-Secret: whsec_triage_501' -H 'Content-Type: application/json' -d "$(body "$1")" | python3 -c "import sys,json;print(json.load(sys.stdin)['run_id'])"; }
 trig() { curl -s -X POST "$API/workflows/$1/trigger" -H "$T" -H 'Content-Type: application/json' -d "$2" | python3 -c "import sys,json;print(json.load(sys.stdin)['run_id'])"; }
