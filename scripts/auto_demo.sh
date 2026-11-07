@@ -96,7 +96,7 @@ narrate "I will reject it. The run is cancelled, my decision is recorded, and no
 # 4. Approve a real refund
 R3=$(hook pay_002); wait_for "$R3" "waiting_approval|failed|succeeded" 60
 A3=$(pending_for "$R3"); curl -s -X POST "$API/approvals/$A3/approve" -H "$T" -H 'Content-Type: application/json' -d '{"decided_by":"maya"}' >/dev/null
-wait_for "$R3" "succeeded|failed" 60; show "$C/runs/$R3"
+wait_for "$R3" "succeeded|failed|cancelled" 60; show "$C/runs/$R3"
 narrate "Here is a genuine refund request. A manager approves it, the run picks up where it paused, the refund goes through exactly once, and the customer gets an email."
 
 # 5. Kill -9 and resume
@@ -108,7 +108,7 @@ narrate "Now, the most important test. This order run has already sent its confi
 docker compose kill -s SIGKILL worker; sleep 1
 narrate "The worker is gone. Let us bring it back."
 docker compose up -d worker >/dev/null 2>&1
-wait_for "$R4" "succeeded|failed" 90; show "$C/runs/$R4"
+wait_for "$R4" "succeeded|failed|cancelled" 90; show "$C/runs/$R4"
 python3 scripts/duplication_check.py --url "$WORLD" | tee /dev/tty | show_output "Duplication check after kill -9 and restart"
 narrate "And it picked up exactly where it left off, not from the beginning. The duplication check confirms that every email and shipment happened exactly once."
 
@@ -118,7 +118,7 @@ R5=$(trig wf_expense_approval '{"input":{"employee_email":"dev2@example.com","am
 sleep 5; show "$C/runs/$R5"
 narrate "What if an outside service goes down? Here, the email step keeps retrying, waiting a little longer each time, without ever sending duplicates."
 curl -s -X POST "$WORLD/admin/config" -d '{"mode":"ok"}' >/dev/null
-wait_for "$R5" "succeeded|failed" 60; show "$C/runs/$R5"
+wait_for "$R5" "succeeded|failed|cancelled" 60; show "$C/runs/$R5"
 narrate "As soon as the service is back, the run finishes on its own."
 
 # 7. Step cap
@@ -127,7 +127,7 @@ narrate "This workflow keeps checking an order that never ships, so it would loo
 
 # 8. Schema enforcement
 R7=$(trig wf_ai_repair_demo '{"input":{"message":"My earbuds arrived with a cracked charging case and the left bud does not pair. I am really disappointed and want to know my options for a replacement or repair."}}')
-wait_for "$R7" "succeeded|failed" 60; show "$C/runs/$R7"
+wait_for "$R7" "succeeded|failed|cancelled" 60; show "$C/runs/$R7"
 narrate "AI answers are always checked against a schema. Here, the first answer was too long. Relay told the model exactly which rule it broke, the model fixed it, and only the valid answer moved forward."
 
 # 9. NL compiler
