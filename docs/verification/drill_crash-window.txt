@@ -1,0 +1,21 @@
+[21:14:24] mode=crash-window: resetting the mock world ledger
+[21:14:24] restarting worker WITH fault crash_after_side_effect:create_shipment
+[21:14:29] triggered run run_1a1b6aec5734f7dd41839
+[21:14:49] worker exited with code 137 right after the shipment POST, before persisting the step
+run run_1a1b6aec5734f7dd41839 status=running steps_executed=3 error=None
+  #1   confirm            notify        succeeded  attempts=['succeeded']  key=run_1a1b6aec5734f7dd41839:confirm:1
+  #2   pack_delay         delay         succeeded  attempts=['succeeded']
+  #3   create_shipment    http_request  running    attempts=['in_flight']  key=run_1a1b6aec5734f7dd41839:create_shipment:3
+[21:14:50] restarting the worker WITHOUT the fault
+[21:15:05] final run status: succeeded
+run run_1a1b6aec5734f7dd41839 status=succeeded steps_executed=4 error=None
+  #1   confirm            notify        succeeded  attempts=['succeeded']  key=run_1a1b6aec5734f7dd41839:confirm:1
+  #2   pack_delay         delay         succeeded  attempts=['succeeded']
+  #3   create_shipment    http_request  succeeded  attempts=['interrupted', 'succeeded (replayed)']  key=run_1a1b6aec5734f7dd41839:create_shipment:3
+  #4   shipped_notice     notify        succeeded  attempts=['succeeded']  key=run_1a1b6aec5734f7dd41839:shipped_notice:4
+[21:15:05] duplication check:
+Ledger entries checked: 4 (executed: 3, replays absorbed: 1, rejected: 0)
+  email.send: 2 executed
+  shipment.create: 1 executed
+
+PASS: every side effect executed exactly once.
