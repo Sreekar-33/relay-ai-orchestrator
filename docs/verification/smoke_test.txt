@@ -1,0 +1,45 @@
+
+[1] Seed workflows loaded and published
+  PASS  GET /workflows returns 200  (got 200)
+  PASS  seed wf_support_triage present
+  PASS  seed wf_expense_approval present
+  PASS  seed wf_slow_fulfillment present
+  PASS  seed wf_runaway present
+  PASS  seeds are published  (expected status 'published' on seed workflows)
+
+[2] Create, publish, trigger a minimal workflow
+  PASS  create draft returns 2xx  (got 201)
+  PASS  publish returns 2xx  (got 200)
+  PASS  trigger returns a run id  (got 202: {'run_id': 'run_1a1b7060dfab607b78efb', 'id': 'run_1a1b7060dfab607b78efb', 'stat)
+  PASS  run reaches succeeded  (got succeeded)
+  PASS  trace has a step for node 'hello'  (1 steps)
+  PASS  notify step visible in mock world ledger
+  PASS  notify carried an Idempotency-Key  (required for exactly-once recovery)
+
+[3] Publish validation rejects broken definitions
+  PASS  rejects unknown node type (at publish)  (got 422)
+  PASS  rejects missing required param (at publish)  (got 422)
+  PASS  rejects reference to nonexistent node (at publish)  (got 422)
+
+[4] Webhook secret enforcement
+  PASS  wrong secret rejected 401/403  (got 401)
+  PASS  correct secret accepted with a run id  (got 202)
+
+[5] Approval lifecycle (wf_expense_approval)
+  PASS  small expense auto-approves (no gate)  (got succeeded)
+  PASS  large expense triggered  (got 202)
+  PASS  run pauses in waiting_approval  (got waiting_approval)
+  PASS  pending approval listed for the run  (1 pending)
+  PASS  approve returns 2xx  (got 200)
+  PASS  approved run resumes and succeeds  (got succeeded)
+
+[6] Run caps stop wf_runaway
+  PASS  wf_runaway triggered  (got 202)
+  PASS  runaway run is stopped (failed/cancelled)  (got failed)
+  PASS  stop reason mentions the cap  (expected a cap-exceeded reason in the run record)
+
+[7] Status vocabulary
+  PASS  all observed statuses in documented set  (saw ['failed', 'queued', 'running', 'succeeded', 'waiting_approval'])
+
+========================================================
+  28 passed, 0 warnings, 0 failed
