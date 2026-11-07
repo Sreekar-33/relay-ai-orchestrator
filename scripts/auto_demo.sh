@@ -54,6 +54,24 @@ wait_for() { for _ in $(seq 1 ${3:-60}); do [[ "$(status "$1")" =~ ^($2)$ ]] && 
 pending_for() { curl -s "$API/approvals?status=pending" -H "$T" | python3 -c "import sys,json;print(next(a['id'] for a in json.load(sys.stdin) if a['run_id']=='$1'))"; }
 ledger_has() { curl -s "$WORLD/admin/ledger" | python3 -c "import sys,json;sys.exit(0 if any(e['action']=='$1' for e in json.load(sys.stdin)['entries']) else 1)"; }
 
+# Show terminal output inside the browser tab (the recording only captures Chrome).
+show_output() {  # $1 = title, stdin = text
+  local f="/tmp/relay_demo_$(date +%s%N 2>/dev/null || date +%s)_$RANDOM.html"
+  python3 -c '
+import html, sys
+title, body = sys.argv[1], sys.stdin.read()
+body = html.escape(body)
+for w, c in (("PASS", "#4ade80"), ("passed", "#4ade80"), ("FAIL", "#f87171"), ("refusal", "#fbbf24"), ("missing_capabilities", "#fbbf24")):
+    body = body.replace(w, f"<b style=\"color:{c}\">{w}</b>")
+print(f"""<!doctype html><meta charset=utf-8><title>{html.escape(title)}</title>
+<body style="margin:0;background:#0f172a;color:#e2e8f0;font:15px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace">
+<div style="padding:28px 36px"><div style="font:600 13px system-ui;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase">Relay · terminal output</div>
+<h1 style="font:700 26px system-ui;margin:6px 0 18px;color:#f8fafc">{html.escape(title)}</h1>
+<pre style="background:#020617;border:1px solid #1e293b;border-radius:10px;padding:20px 24px;white-space:pre-wrap;font-size:15px">{body}</pre></div>""")
+' "$1" > "$f"
+  show "file://$f"
+}
+
 curl -s -X POST "$WORLD/admin/reset" >/dev/null; curl -s -X POST "$WORLD/admin/config" -d '{"mode":"ok","fail_rate":0,"latency_ms":0}' >/dev/null
 
 # 1. Intro
@@ -91,7 +109,7 @@ docker compose kill -s SIGKILL worker; sleep 1
 narrate "The worker is gone. Let us bring it back."
 docker compose up -d worker >/dev/null 2>&1
 wait_for "$R4" "succeeded|failed" 90; show "$C/runs/$R4"
-python3 scripts/duplication_check.py --url "$WORLD"
+python3 scripts/duplication_check.py --url "$WORLD" | tee /dev/tty | show_output "Duplication check after kill -9 and restart"
 narrate "And it picked up exactly where it left off, not from the beginning. The duplication check confirms that every email and shipment happened exactly once."
 
 # 6. Outage and backoff
@@ -114,10 +132,10 @@ narrate "AI answers are always checked against a schema. Here, the first answer 
 
 # 9. NL compiler
 show "$C/build"
-curl -s -X POST "$API/workflows/compile" -H "$T" -H 'Content-Type: application/json' -d '{"description":"Every day at 9am, scan our Postgres database for new signups and update each record in Salesforce.","save":false}' | python3 -m json.tool | head -12
+curl -s -X POST "$API/workflows/compile" -H "$T" -H 'Content-Type: application/json' -d '{"description":"Every day at 9am, scan our Postgres database for new signups and update each record in Salesforce.","save":false}' | python3 -m json.tool | head -14 | tee /dev/tty | show_output "NL compiler: Postgres + Salesforce request"
 narrate "You can also describe a workflow in plain English, and Relay builds it for you. But if you ask for something it cannot do, like connecting to a database or Salesforce, it politely refuses, and tells you what is missing. On the evaluation set, it scored thirteen out of fifteen."
 
 # 10. Smoke test
 if [ -n "${PRESENT:-}" ]; then narrate "Finally, the official smoke test."; else narrate "Finally, the official smoke test." & fi
-python3 scripts/smoke_test.py --url "$API" --token relay-demo-token --world "$WORLD" | tail -3
+python3 scripts/smoke_test.py --url "$API" --token relay-demo-token --world "$WORLD" | tee /dev/tty | show_output "Official smoke test (scripts/smoke_test.py)"
 narrate "All twenty eight checks pass, along with forty three automated tests. Everything, including the verification report, is in the pull request. Thanks for watching!"
