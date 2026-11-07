@@ -4,7 +4,7 @@
 # Narration uses macOS `say` (free, offline). Pages open in your default browser. Terminal + browser side by side.
 set -uo pipefail
 API=http://localhost:8080; WORLD=http://localhost:9210; T="Authorization: Bearer relay-demo-token"; C="$API/console/#"
-VOICE_RATE=${VOICE_RATE:-190}; VOICE=${VOICE:-Rishi}   # male Indian English; also try VOICE=Aman
+VOICE_RATE=${VOICE_RATE:-190}; VOICE=${VOICE:-Aman}   # male Indian English (macOS); also: Rishi
 narrate() { printf '\n\033[1;36m▶ %s\033[0m\n' "$*"; [[ -n "${DRY:-}" ]] || say -v "$VOICE" -r "$VOICE_RATE" "$*"; }
 show() { [[ -n "${DRY:-}" ]] && { echo "   [open] $1"; return; }; open "$1"; sleep 1.5; }
 body() { python3 -c "import json;print(json.dumps(next(json.loads(l)['body'] for l in open('data/sample_payloads.jsonl') if l.strip() and json.loads(l)['id']=='$1')))"; }
