@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Self-driving, narrated demo (~4.5 min). Start a screen recording (Cmd+Shift+5, Record Entire Screen), then run:
+# Self-driving demo (~4.5 min). RECOMMENDED: PRESENT=1 bash scripts/auto_demo.sh  -> shows each line for YOU to read aloud, Enter to continue.
+# Otherwise narrated by a TTS voice (note: macOS screen recording captures the mic, not computer audio). Start a screen recording (Cmd+Shift+5, Record Entire Screen), then run:
 #   bash scripts/auto_demo.sh
 # Narration uses macOS `say` (free, offline). Pages open in your default browser. Terminal + browser side by side.
 set -uo pipefail
@@ -18,6 +19,13 @@ speak_sentence() {
   say -v "$([ "$VOICE" = "prabhat" ] && echo Aman || echo "$VOICE")" -r "$VOICE_RATE" "$(echo "$1" | sed 's/AI/A.I./g')"
 }
 narrate() {
+  if [ -n "${PRESENT:-}" ]; then   # presenter mode: YOU read the line aloud, then press Enter to continue
+    printf '\n\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m\n'
+    printf '\033[1;37m  SAY:  %s\033[0m\n' "$*"
+    printf '\033[2m  (read it aloud, then press Enter)\033[0m'
+    read -r _ </dev/tty
+    return
+  fi
   printf '\n\033[1;36m▶ %s\033[0m\n' "$*"
   [ -n "${DRY:-}" ] && return
   echo "$*" | python3 -c "import re,sys;[print(x) for x in re.split(r'(?<=[.!?])\s+', sys.stdin.read().strip()) if x]" | while IFS= read -r line; do
@@ -97,6 +105,6 @@ curl -s -X POST "$API/workflows/compile" -H "$T" -H 'Content-Type: application/j
 narrate "You can also describe a workflow in plain English, and Relay builds it for you. But if you ask for something it cannot do, like connecting to a database or Salesforce, it politely refuses, and tells you what is missing. On the evaluation set, it scored thirteen out of fifteen."
 
 # 10. Smoke test
-narrate "Finally, the official smoke test." &
+if [ -n "${PRESENT:-}" ]; then narrate "Finally, the official smoke test."; else narrate "Finally, the official smoke test." & fi
 python3 scripts/smoke_test.py --url "$API" --token relay-demo-token --world "$WORLD" | tail -3
 narrate "All twenty eight checks pass, along with forty three automated tests. Everything, including the verification report, is in the pull request. Thanks for watching!"
