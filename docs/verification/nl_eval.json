@@ -1,0 +1,321 @@
+{
+  "model": "openrouter:openai/gpt-4o-mini",
+  "total": 15,
+  "correct": 13,
+  "accuracy": 0.867,
+  "strict_correct_trigger_also_matches": 13,
+  "cases": [
+    {
+      "id": "nl_demo_001",
+      "expected": "workflow",
+      "got": "workflow",
+      "attempts": 1,
+      "checks": {
+        "publishes": true,
+        "no_invented_types": true,
+        "required_node_types": true,
+        "branching": true
+      },
+      "trigger": {
+        "expected": "webhook",
+        "actual": "webhook",
+        "matches": true
+      },
+      "detail": [
+        "check_amount:condition",
+        "request_approval:approval",
+        "send_confirmation:notify"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "nl_002",
+      "expected": "workflow",
+      "got": "workflow",
+      "attempts": 1,
+      "checks": {
+        "publishes": true,
+        "no_invented_types": true,
+        "required_node_types": true,
+        "branching": false
+      },
+      "trigger": {
+        "expected": "schedule",
+        "actual": "schedule",
+        "matches": true
+      },
+      "detail": [
+        "check_status:http_request",
+        "evaluate_status:condition",
+        "send_alert:notify"
+      ],
+      "result": "fail"
+    },
+    {
+      "id": "nl_003",
+      "expected": "workflow",
+      "got": "workflow",
+      "attempts": 1,
+      "checks": {
+        "publishes": true,
+        "no_invented_types": true,
+        "required_node_types": true,
+        "branching": true
+      },
+      "trigger": {
+        "expected": "webhook",
+        "actual": "webhook",
+        "matches": true
+      },
+      "detail": [
+        "analyze_sentiment:ai",
+        "condition_check_sentiment:condition",
+        "notify_support:notify"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "nl_004",
+      "expected": "workflow",
+      "got": "workflow",
+      "attempts": 1,
+      "checks": {
+        "publishes": true,
+        "no_invented_types": true,
+        "required_node_types": true,
+        "approval_precedes_order_action": true
+      },
+      "trigger": {
+        "expected": "webhook",
+        "actual": "webhook",
+        "matches": true
+      },
+      "detail": [
+        "summarize_request:ai",
+        "manager_approval:approval",
+        "issue_refund:order_action",
+        "notify_customer:notify"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "nl_005",
+      "expected": "workflow",
+      "got": "workflow",
+      "attempts": 1,
+      "checks": {
+        "publishes": true,
+        "no_invented_types": true,
+        "required_node_types": true
+      },
+      "trigger": {
+        "expected": "manual",
+        "actual": "manual",
+        "matches": true
+      },
+      "detail": [
+        "wait_delay:delay",
+        "send_reminder:notify"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "nl_006",
+      "expected": "workflow",
+      "got": "workflow",
+      "attempts": 1,
+      "checks": {
+        "publishes": true,
+        "no_invented_types": true,
+        "required_node_types": true,
+        "branching": true
+      },
+      "trigger": {
+        "expected": "webhook",
+        "actual": "webhook",
+        "matches": true
+      },
+      "detail": [
+        "send_welcome_email:notify",
+        "check_company_size:condition",
+        "post_lead_alert:notify"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "nl_007",
+      "expected": "workflow",
+      "got": "refusal",
+      "attempts": 2,
+      "checks": {
+        "returned_workflow": false
+      },
+      "detail": {
+        "reason": "Polling mechanism not supported",
+        "missing_capabilities": [
+          "looping or stateful polling mechanism"
+        ]
+      },
+      "result": "fail"
+    },
+    {
+      "id": "nl_008",
+      "expected": "workflow",
+      "got": "workflow",
+      "attempts": 1,
+      "checks": {
+        "publishes": true,
+        "no_invented_types": true,
+        "required_node_types": true,
+        "branching": true
+      },
+      "trigger": {
+        "expected": "webhook",
+        "actual": "webhook",
+        "matches": true
+      },
+      "detail": [
+        "judge_urgency:ai",
+        "urgency_condition:condition",
+        "notify_warehouse:notify"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "nl_009",
+      "expected": "workflow",
+      "got": "workflow",
+      "attempts": 1,
+      "checks": {
+        "publishes": true,
+        "no_invented_types": true,
+        "required_node_types": true,
+        "approval_precedes_order_action": true
+      },
+      "trigger": {
+        "expected": "webhook",
+        "actual": "webhook",
+        "matches": true
+      },
+      "detail": [
+        "summarize_complaint:ai",
+        "approval_request:approval",
+        "create_replacement_order:order_action",
+        "notify_customer:notify"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "nl_010",
+      "expected": "workflow",
+      "got": "workflow",
+      "attempts": 1,
+      "checks": {
+        "publishes": true,
+        "no_invented_types": true,
+        "required_node_types": true
+      },
+      "trigger": {
+        "expected": "webhook",
+        "actual": "webhook",
+        "matches": true
+      },
+      "detail": [
+        "payment_failed:delay",
+        "send_reminder_email:notify",
+        "final_notice_delay:delay",
+        "send_final_notice_email:notify"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "nl_011",
+      "expected": "workflow",
+      "got": "refusal",
+      "attempts": 1,
+      "checks": {
+        "returned_workflow": true
+      },
+      "detail": {
+        "reason": "Refund action requires prior approval which is not provided in the request.",
+        "missing_capabilities": [
+          "human approval process"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "nl_012",
+      "expected": "workflow",
+      "got": "workflow",
+      "attempts": 1,
+      "checks": {
+        "publishes": true,
+        "no_invented_types": true,
+        "required_node_types": true
+      },
+      "trigger": {
+        "expected": "schedule",
+        "actual": "schedule",
+        "matches": true
+      },
+      "detail": [
+        "fetch_metrics:http_request",
+        "generate_summary:ai",
+        "post_summary:notify"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "nl_trap_001",
+      "expected": "refusal",
+      "got": "refusal",
+      "attempts": 1,
+      "checks": {
+        "refused_with_reason": true
+      },
+      "detail": {
+        "reason": "The workflow requires database access and Salesforce integration, which are not supported capabilities.",
+        "missing_capabilities": [
+          "Postgres database access",
+          "Salesforce integration"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "nl_trap_002",
+      "expected": "refusal",
+      "got": "refusal",
+      "attempts": 1,
+      "checks": {
+        "refused_with_reason": true
+      },
+      "detail": {
+        "reason": "Missing capabilities for call transcription and SMS messaging.",
+        "missing_capabilities": [
+          "call transcription",
+          "SMS messaging"
+        ]
+      },
+      "result": "pass"
+    },
+    {
+      "id": "nl_trap_003",
+      "expected": "refusal",
+      "got": "refusal",
+      "attempts": 1,
+      "checks": {
+        "refused_with_reason": true
+      },
+      "detail": {
+        "reason": "The request requires capabilities to monitor an email inbox and publish to a blog, which are not available in the defined node types.",
+        "missing_capabilities": [
+          "email inbox monitoring",
+          "blog publishing"
+        ]
+      },
+      "result": "pass"
+    }
+  ]
+}

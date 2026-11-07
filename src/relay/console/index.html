@@ -189,6 +189,13 @@ h1 .badge { font-size: 13px; }
 .approval-box .msg { color: var(--text); font-size: 15px; font-weight: 600; margin: 2px 0 4px; }
 .approval-box .lbl { color: var(--amber); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
 .info-box { background: var(--blue-bg); color: var(--text); }
+ul.issues { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+ul.issues li { padding: 7px 10px; border-radius: 7px; font-size: 13px; }
+ul.issues li.error { background: var(--red-bg); color: var(--red); }
+ul.issues li.warn { background: var(--amber-bg); color: var(--text); }
+a.btn { display: inline-block; text-decoration: none; }
+a.btn.ghost { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ok-box { background: var(--green-bg); color: var(--green); }
 ul.issues { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 6px; }
 ul.issues li { padding: 7px 12px; border-radius: 8px; font-size: 13px; }
@@ -258,6 +265,7 @@ ul.approvals .msg { font-weight: 600; font-size: 14.5px; }
     <nav id="nav">
       <a href="#/" data-nav="/">Dashboard</a>
       <a href="#/workflows" data-nav="/workflows">Workflows</a>
+      <a href="#/build" data-nav="/build">Build</a>
       <a href="#/runs" data-nav="/runs">Runs</a>
       <a href="#/approvals" data-nav="/approvals">Approvals <span id="apr-badge" class="count"></span></a>
       <a href="#/world" data-nav="/world">Mock world</a>
@@ -412,9 +420,104 @@ function makeCtx() {
   return ctx;
 }
 
+
+// ---------------------------------------------------------------------------
+// #/build  (create / edit workflows: plain English via the NL compiler, or JSON)
+// ---------------------------------------------------------------------------
+const TEMPLATE_WF = {
+  name: "My workflow",
+  description: "Describe what it does",
+  trigger: { type: "webhook", secret: "change-me-secret" },
+  entry: "check",
+  limits: { max_steps: 20, timeout_seconds: 300, max_ai_tokens: 0 },
+  nodes: [
+    { id: "check", type: "condition", params: { left: "{{trigger.body.amount_usd}}", op: "greater_than", right: "100" }, on_true: "gate", on_false: "notify_ok" },
+    { id: "gate", type: "approval", params: { message: "Approve ${{trigger.body.amount_usd}} from {{trigger.body.email}}?" }, next: "notify_ok" },
+    { id: "notify_ok", type: "notify", params: { channel: "email", to: "{{trigger.body.email}}", subject: "Done", message: "Your request was processed." }, next: null },
+  ],
+};
+
+function issuesHtml(v) {
+  if (!v) return "";
+  const items = [...(v.errors || []).map((e) => ["err", e]), ...(v.warnings || []).map((w) => ["warn", w])];
+  if (!items.length) return `<div class="pill ok" style="margin-top:8px">✔ valid: no errors or warnings</div>`;
+  return `<ul class="issues">${items.map(([k, i]) => `<li class="${k === "err" ? "error" : "warn"}"><b class="mono">${esc(i.code)}</b> ${esc(i.message)}</li>`).join("")}</ul>`;
+}
+
+async function viewBuild(el, ctx, _params, query) {
+  let wfId = query.get("id") || null;
+  let def = TEMPLATE_WF;
+  if (wfId) {
+    const wf = await api(`/workflows/${encodeURIComponent(wfId)}`);
+    def = wf.definition;
+  }
+  el.innerHTML = `
+    <div class="page-head"><h1>${wfId ? `Edit <span class="mono">${esc(wfId)}</span>` : "Build a workflow"}</h1></div>
+    <p class="muted">Describe it in plain English and let the AI compiler draft it (only catalog node types; it refuses what the catalog cannot do), or edit the JSON directly. Publishing runs the same validator the engine trusts. Edits to a published workflow never change runs already in flight; each run keeps its own snapshot.</p>
+    <div class="cols" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:18px;align-items:start">
+      <section class="card" style="padding:14px">
+        <h2 style="margin-top:0">1 · Describe it in English <span class="pill">AI compiler</span></h2>
+        <textarea id="nl" rows="7" spellcheck="true" placeholder="When a webhook receives a new order, check if the total amount is over 100 dollars. If it is, ask a manager for approval and then email the customer a confirmation. Otherwise email the confirmation right away."></textarea>
+        <div class="row" style="margin-top:8px"><button id="compile" type="button">Compile to draft</button><span class="muted small">uses the configured model; ~5–20 s</span></div>
+        <div id="nl-out"></div>
+      </section>
+      <section class="card" style="padding:14px">
+        <h2 style="margin-top:0">2 · Workflow JSON</h2>
+        <textarea id="def" rows="24" spellcheck="false" class="mono" style="width:100%;font-size:12px">${esc(JSON.stringify(def, null, 2))}</textarea>
+        <div class="row" style="margin-top:8px">
+          <button id="save" type="button" class="ghost">Save draft &amp; validate</button>
+          <button id="pub" type="button">Save &amp; publish</button>
+          <span id="saved-as" class="muted small">${wfId ? `editing ${esc(wfId)}` : "not saved yet"}</span>
+        </div>
+        <div id="def-out"></div>
+      </section>
+    </div>`;
+  const out = $("#def-out", el), nlOut = $("#nl-out", el);
+
+  async function save() {
+    let body;
+    try { body = JSON.parse($("#def", el).value); } catch (e) { throw Object.assign(new Error("JSON syntax error: " + e.message), { code: "invalid_json" }); }
+    if (wfId) await api(`/workflows/${encodeURIComponent(wfId)}`, { method: "PUT", body });
+    else { const wf = await api("/workflows", { method: "POST", body }); wfId = wf.id; $("#saved-as", el).textContent = `saved as ${wfId}`; history.replaceState(null, "", `#/build?id=${encodeURIComponent(wfId)}`); }
+    return wfId;
+  }
+  $("#save", el).addEventListener("click", async () => {
+    try { const id = await save(); out.innerHTML = issuesHtml(await api(`/workflows/${encodeURIComponent(id)}/validate`, { method: "POST" })); toast("Draft saved"); }
+    catch (e) { out.innerHTML = errBox(e) + issuesHtml(e.data?.error?.details); }
+  });
+  $("#pub", el).addEventListener("click", async () => {
+    try {
+      const id = await save();
+      const r = await api(`/workflows/${encodeURIComponent(id)}/publish`, { method: "POST" });
+      out.innerHTML = issuesHtml({ errors: [], warnings: r.warnings }) + `<p style="margin-top:10px"><b>Published v${esc(r.version)}.</b> <a href="#/workflows/${esc(encodeURIComponent(id))}">Open it to trigger a run →</a></p>`;
+      toast(`Published v${r.version}`);
+    } catch (e) { out.innerHTML = errBox(e) + issuesHtml(e.data?.error?.details); }
+  });
+  $("#compile", el).addEventListener("click", async (ev) => {
+    const b = ev.currentTarget; b.disabled = true; nlOut.innerHTML = `<p class="muted">Compiling…</p>`;
+    try {
+      const r = await api("/workflows/compile", { method: "POST", body: { description: $("#nl", el).value, save: true } });
+      if (r.refusal) {
+        nlOut.innerHTML = `<div class="error-box" style="margin-top:10px"><b>Refused.</b> ${esc(r.refusal.reason)}<div style="margin-top:6px">Missing: ${(r.refusal.missing_capabilities || []).map((m) => `<code>${esc(m)}</code>`).join(" ")}</div></div>`;
+      } else {
+        wfId = r.workflow.id;
+        $("#saved-as", el).textContent = `draft ${wfId} (from the compiler)`;
+        history.replaceState(null, "", `#/build?id=${encodeURIComponent(wfId)}`);
+        $("#def", el).value = JSON.stringify(r.workflow.definition, null, 2);
+        nlOut.innerHTML = `<div class="info-box" style="margin-top:10px">${esc(r.explanation)}</div>
+          ${(r.notes || []).map((n) => `<div class="pill" style="margin-top:6px;white-space:normal">${esc(n)}</div>`).join("")}
+          ${r.webhook ? `<div class="approval-box" style="margin-top:8px">Webhook: <code>POST ${esc(r.webhook.url)}</code> with <code>X-Relay-Secret: ${esc(r.webhook.secret)}</code> (shown once; copy it now)</div>` : ""}
+          <p class="small muted" style="margin-top:6px">Saved as a draft (${esc(r.compile.attempts)} attempt(s), ${esc(r.compile.tokens.prompt + r.compile.tokens.completion)} tokens). Review the JSON, then <b>Save &amp; publish</b>.</p>`;
+      }
+    } catch (e) { nlOut.innerHTML = errBox(e) + issuesHtml(e.data?.error?.details && { errors: e.data.error.details.issues || [] }); }
+    finally { b.disabled = false; }
+  });
+}
+
 const ROUTES = [
   [/^\/?$/, viewDashboard],
   [/^\/workflows\/?$/, viewWorkflows],
+  [/^\/build\/?$/, viewBuild],
   [/^\/workflows\/([^/]+)$/, viewWorkflow],
   [/^\/runs\/?$/, viewRuns],
   [/^\/runs\/([^/]+)$/, viewRun],
@@ -530,7 +633,7 @@ async function viewDashboard(el, ctx) {
 // ---------------------------------------------------------------------------
 async function viewWorkflows(el) {
   const rows = await api("/workflows");
-  el.innerHTML = `<div class="page-head"><h1>Workflows</h1></div>${table([
+  el.innerHTML = `<div class="page-head"><h1>Workflows</h1><a class="btn" href="#/build">+ New workflow</a></div>${table([
     { label: "Workflow", render: (w) => `<a href="#/workflows/${esc(encodeURIComponent(w.id))}"><b>${esc(w.name || w.id)}</b></a><div class="muted mono small">${esc(w.id)}</div>` },
     { label: "Description", render: (w) => `<span class="muted small">${esc(w.description || "")}</span>` },
     { label: "Status", render: (w) => badge(w.status) + (w.has_unpublished_changes ? ` <span class="pill warn">unpublished edits</span>` : "") },
@@ -608,6 +711,7 @@ async function viewWorkflow(el, ctx, [id]) {
         <div class="row">
           <button id="trigger" type="button" ${published ? "" : "disabled"}>Trigger run</button>
           <button id="publish" type="button" class="ghost">${published && !wf.has_unpublished_changes ? "Publish again" : "Publish"}</button>
+          <a class="btn ghost" href="#/build?id=${esc(encodeURIComponent(wf.id))}">Edit</a>
           ${published ? "" : `<span class="muted small">Publish before triggering.</span>`}
         </div>
         <div id="pub-out"></div>

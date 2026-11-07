@@ -226,9 +226,10 @@ def _sum(calls) -> TokenUsage:
     return TokenUsage(sum(c.prompt_tokens for c in calls), sum(c.completion_tokens for c in calls))
 
 
-def enforce(provider, prompt: str, schema: dict, *, timeout_s: float) -> EnforcedResult:
+def enforce(provider, prompt: str, schema: dict, *, timeout_s: float, system: str | None = None) -> EnforcedResult:
     """Call -> parse -> validate -> ONE repair call with the validation errors -> give up."""
-    messages = [{"role": "system", "content": SYSTEM_TEMPLATE.format(schema=json.dumps(schema))},
+    sys_text = system.replace("{schema}", json.dumps(schema)) if system else SYSTEM_TEMPLATE.format(schema=json.dumps(schema))
+    messages = [{"role": "system", "content": sys_text},
                 {"role": "user", "content": prompt}]
     calls, errors = [], []
     for attempt in (1, 2):

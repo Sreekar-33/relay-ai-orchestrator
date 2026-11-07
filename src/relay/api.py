@@ -128,6 +128,28 @@ def create_app(settings: Settings | None = None, db: Database | None = None) -> 
         run = triggers.manual(wf_id, (body or {}).get("input", {}))
         return {"run_id": run["id"], "id": run["id"], "status": run["status"]}
 
+    # ---------------- NL compiler (plain English -> draft workflow, validated)
+    from relay.compiler import NLCompiler
+    compiler = NLCompiler(provider, catalog, settings)
+
+    @app.post("/workflows/compile", dependencies=A, tags=["compiler"])
+    def compile_workflow(body=Body(...)):
+        if not isinstance(body, dict) or not isinstance(body.get("description"), str):
+            raise RelayError("invalid_request", 'Body must be {"description": "...", "save": true}', 400)
+        r = compiler.compile(body["description"])
+        meta = {"attempts": r.attempts, "tokens": {"prompt": r.tokens.prompt, "completion": r.tokens.completion}}
+        if r.kind == "refusal":
+            return {"refusal": r.refusal, "explanation": r.explanation, "compile": meta}
+        if r.kind == "failed":
+            raise RelayError("compile_failed", "The compiler could not produce a valid workflow", 422, {"issues": r.issues, "compile": meta})
+        if body.get("save", True):
+            workflows.create(r.workflow)
+        trig = r.workflow["trigger"]
+        webhook = {"url": f"/hooks/{r.workflow['id']}", "secret": trig["secret"], "note": "Shown once. Masked everywhere else."} if trig.get("type") == "webhook" else None
+        return JSONResponse(status_code=201, content={"workflow": {"id": r.workflow["id"], "status": "draft", "definition": S.mask_definition(r.workflow)},
+                                                      "webhook": webhook, "explanation": r.explanation, "warnings": r.warnings,
+                                                      "notes": r.notes, "compile": meta})
+
     # ---------------- runs
     @app.get("/runs", dependencies=A, tags=["runs"])
     def runs(workflow_id: str | None = None, status: str | None = None, limit: int = Query(50, ge=1, le=200)):

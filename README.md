@@ -63,7 +63,21 @@ Extra checks (`data/extra/demo_workflows.json`, documented data additions):
 - `wf_ai_repair_demo`: an AI node with a deliberately strict schema. The trace shows two calls in `meta.ai_calls`: the first is invalid, with its errors, and the second is the repaired, valid output (`repaired: true`).
 - Chaos: `make chaos` takes the world `down` in the middle of a run (steps go to `retrying` with backoff, then complete once the world is back), sets `fail_rate 0.3` (retries absorb the failures, and the ledger shows replays rather than duplicates), and runs the runaway cap.
 
-The NL compiler demo (step 8) is not built. See the [Roadmap](#roadmap-not-implemented).
+| 8 | NL compiler | Console → **Build** → describe the workflow in English → **Compile to draft** → **Save & publish** → trigger it. Try `nl_trap_001` (Postgres + Salesforce) | A valid draft that uses only catalog node types. An approval is inserted automatically before any `order_action`. Webhook secret shown once. Trap requests are refused, naming the missing capabilities |
+
+---
+
+## Building workflows: console builder + natural-language compiler
+
+There is deliberately no drag-and-drop canvas (the brief: *"Workflows are created via API (as JSON)"*). Workflows can be built three ways:
+
+1. **Plain English (AI compiler):** `POST /workflows/compile {"description": "..."}`, or console → **Build**. The pipeline: a catalog-grounded system prompt → JSON enforced against a schema (one repair) → deterministic post-processing (generated id and webhook secret, limits, **an approval node inserted before any `requires_approval` node**) → **the publish validator as referee** → up to 2 repair rounds fed with the validator's errors → a draft, a refusal (`missing_capabilities`), or a 422. It never emits node types outside the catalog.
+2. **JSON editor:** console → **Build** / **Edit**. Includes Save draft & validate (errors and warnings shown inline) and Save & publish (creates a new immutable version; in-flight runs keep their snapshot).
+3. **REST:** `POST /workflows` → `POST /workflows/{id}/publish`.
+
+**NL eval** (`python3 scripts/nl_eval.py`, EVALUATION_GUIDE §4 scoring; the compiler sees only `description`): **13/15 = 87%** with `openai/gpt-4o-mini`, all 3 trap cases refused and 0 invented node types. Full table: [`docs/verification/nl_eval_final.md`](docs/verification/nl_eval_final.md). Iteration 1 scored 11/15 ([`nl_eval_iteration1.md`](docs/verification/nl_eval_iteration1.md)): the model refused AI-judgement requests (sentiment, urgency), treating them as missing capabilities. One general rule describing what the `ai`/`order_action` nodes can do fixed that, without tuning to the test answers. Remaining misses:
+- `nl_002`: both condition branches lead to the same node, so the scorer sees no live branch.
+- `nl_007`: the model refused the "keep checking until shipped" polling loop, although a backward jump through a delay node is legal.
 
 ---
 
@@ -296,7 +310,6 @@ The summary is in [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
 
 ## Roadmap (not implemented)
 
-- **NL workflow compiler + eval** over `data/nl_eval.jsonl` (demo step 8)
 - **Cron schedule triggers**
 - **Replay** of a failed run from its failed step, reusing the original idempotency key
 - **AI failure triage** (probable cause and fix written onto failed runs)

@@ -10,7 +10,7 @@
 [2] Create, publish, trigger a minimal workflow
   PASS  create draft returns 2xx  (got 201)
   PASS  publish returns 2xx  (got 200)
-  PASS  trigger returns a run id  (got 202: {'run_id': 'run_1a1b6ae111e9e4842197f', 'id': 'run_1a1b6ae111e9e4842197f', 'stat)
+  PASS  trigger returns a run id  (got 202: {'run_id': 'run_1a1b6cac6c4c975558009', 'id': 'run_1a1b6cac6c4c975558009', 'stat)
   PASS  run reaches succeeded  (got succeeded)
   PASS  trace has a step for node 'hello'  (1 steps)
   PASS  notify step visible in mock world ledger

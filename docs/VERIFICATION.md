@@ -58,3 +58,12 @@ The gate is engine logic: before any `requires_approval` node runs, the engine q
 ## Idempotency scheme and the crash-window answer
 
 The key is `{run_id}:{node_id}:{sequence}`. It is persisted on the step row **before** the side-effect call, and reused for every retry and for resume. It never contains the attempt number. The sequence suffix makes loop iterations distinct effects. If the worker dies after the effect but before the step is persisted, resume cannot know whether the call landed, so it re-sends the same key. The world either replays the stored response (it landed) or executes it (it never arrived). Either way it happens exactly once.
+
+## 6. NL compiler eval: 13/15 (87%)
+
+`python3 scripts/nl_eval.py` over `data/nl_eval.jsonl` with `openai/gpt-4o-mini` via OpenRouter. The compiler receives only `description`; the assertions and notes are never sent.
+
+- Iteration 1: 11/15 ([`nl_eval_iteration1.md`](verification/nl_eval_iteration1.md)). Three AI-judgement requests (sentiment, urgency, summary) were wrongly refused, and nl_009 missed the replacement `order_action`.
+- Change: one general prompt rule listing the catalog's own capabilities (the `ai` node can classify, judge, summarize and extract; `order_action` does refunds and replacements). No eval answers were added.
+- Iteration 2 (final): 13/15 ([`nl_eval_final.md`](verification/nl_eval_final.md)). All 3 traps refused with missing capabilities, 0 invented node types, every produced workflow passes publish validation, and approvals precede every `order_action`.
+- Misses: `nl_002` has a condition whose two branches converge on the same node (no live branch); `nl_007` was refused instead of being built as a delay-based polling loop.
