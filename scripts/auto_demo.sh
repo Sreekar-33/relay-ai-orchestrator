@@ -18,6 +18,17 @@ speak_sentence() {
   fi
   say -v "$([ "$VOICE" = "prabhat" ] && echo Aman || echo "$VOICE")" -r "$VOICE_RATE" "$(echo "$1" | sed 's/AI/A.I./g')"
 }
+# Real-cursor tour (POINTER=1, default on): glides the mouse over what is being discussed. Hover only, never clicks.
+TOUR_PID=""
+tour() {
+  [ -n "${DRY:-}" ] && return 0
+  [ "${POINTER:-1}" = "0" ] && return 0
+  stop_tour
+  [ -x scripts/pointer/mouse ] || swiftc -O scripts/pointer/mouse.swift -o scripts/pointer/mouse 2>/dev/null || return 0
+  python3 scripts/pointer/tour.py "$@" >/dev/null 2>&1 &
+  TOUR_PID=$!
+}
+stop_tour() { [ -n "$TOUR_PID" ] && kill "$TOUR_PID" 2>/dev/null; TOUR_PID=""; }
 # Mouse cue (presenter mode only): what to point at / click in Chrome while you speak. Safe clicks only.
 cue() { [ -n "${PRESENT:-}" ] && printf '\n\033[1;35m  MOUSE: %s\033[0m' "$*"; return 0; }
 narrate() {
@@ -26,6 +37,7 @@ narrate() {
     printf '\033[1;37m  SAY:  %s\033[0m\n' "$*"
     printf '\033[2m  (read it aloud, then press Enter)\033[0m'
     read -r _ </dev/tty
+    stop_tour
     return
   fi
   printf '\n\033[1;36m▶ %s\033[0m\n' "$*"
@@ -79,25 +91,30 @@ curl -s -X POST "$WORLD/admin/reset" >/dev/null; curl -s -X POST "$WORLD/admin/c
 # 1. Intro
 show "$C/"
 cue "Circle the pointer over the status tiles (succeeded / failed / waiting). Then point at the \"pending approvals\" tile."
+tour sel:.tile "text:pending approvals" sel:nav
 narrate "Hi! This is Relay, an AI workflow orchestrator. You define a workflow as a set of connected steps. When it is triggered, the run is queued in Postgres, and a separate worker executes it, one step at a time. Each step is saved before it runs, so even if the worker crashes, nothing happens twice. And approvals are enforced by the engine itself, not by the AI."
 show "$C/workflows"
 cue "Run the pointer down the 4 workflow rows. Point at a green \"published\" badge and the \"v1\" version."
+tour text:wf_support_triage text:wf_expense_approval text:wf_slow_fulfillment text:wf_runaway text:published
 narrate "Here are the four workflows that came with the project, already published. Every run keeps its own snapshot of the workflow, so editing a workflow never changes a run that is already in progress."
 
 # 2. Normal triage through the webhook
 R1=$(hook pay_001); wait_for "$R1" "succeeded|failed|waiting_approval" 60
 show "$C/runs/$R1"
 cue "Point at the green \"succeeded\" badge. Then CLICK the gray line under the \"classify\" step (idempotency key · input · output …) to expand it, and point at output \"category\": \"complaint\" and the token pill. Then point at the \"route\" step's \"on_false\" branch pill and the \"notify_support\" step."
+tour step:classify open:classify inside:classify:complaint pills:classify pills:route step:notify_support
 narrate "Let us send a normal customer complaint through the webhook. The AI step read the message and classified it as a complaint. You can see the tokens it used right here in the trace. Based on that answer, the run took the support branch, and posted a message to the support channel."
 
 # 3. Prompt injection
 R2=$(hook pay_inject_001); wait_for "$R2" "succeeded|failed|waiting_approval" 60
 show "$C/runs/$R2"
 cue "Point at the amber injection-warning banner at the top (the flagged rules). Then point at the amber \"Waiting for approval\" box and the \"refund_gate\" step. DO NOT click Approve or Reject."
+tour sel:.risk-box "text:Waiting for approval" step:refund_gate badge:refund_gate
 narrate "Now, something sneaky. This message is a prompt injection. It claims that approval was already granted, and asks for a five thousand dollar refund. Relay flags it as suspicious. And notice, the run still stops and waits for a human. That is because the approval check lives in the engine, so nothing the AI says can skip it."
 A2=$(pending_for "$R2"); curl -s -X POST "$API/approvals/$A2/reject" -H "$T" -H 'Content-Type: application/json' -d '{"decided_by":"maya","note":"injection attempt"}' >/dev/null
 sleep 1; show "$C/runs/$R2"
 cue "Point at the \"cancelled\" status badge and the error box saying approval_rejected / decided by maya."
+tour top text:approval_rejected badge:refund_gate
 narrate "I will reject it. The run is cancelled, my decision is recorded, and no refund ever happened."
 
 # 4. Approve a real refund
@@ -105,6 +122,7 @@ R3=$(hook pay_002); wait_for "$R3" "waiting_approval|failed|succeeded" 60
 A3=$(pending_for "$R3"); curl -s -X POST "$API/approvals/$A3/approve" -H "$T" -H 'Content-Type: application/json' -d '{"decided_by":"maya"}' >/dev/null
 wait_for "$R3" "succeeded|failed|cancelled" 60; show "$C/runs/$R3"
 cue "Point at the \"issue_refund\" step and its green gate pill \"approved (apr_…)\". Expand \"notify_customer\" and point at the refund reference in its input message."
+tour step:issue_refund pills:issue_refund open:notify_customer inside:notify_customer:ref_
 narrate "Here is a genuine refund request. A manager approves it, the run picks up where it paused, the refund goes through exactly once, and the customer gets an email."
 
 # 5. Kill -9 and resume
@@ -113,14 +131,17 @@ R4=$(trig wf_slow_fulfillment '{"input":{"order_id":"ord_2003","customer_email":
 for _ in $(seq 1 30); do ledger_has email.send && break; sleep 0.5; done
 show "$C/runs/$R4"
 cue "Point at the \"pack_delay\" step showing \"sleeping until …\". Point at \"confirm\" = succeeded, and that \"create_shipment\" has not run yet."
+tour step:confirm badge:confirm step:pack_delay "text:sleeping until"
 narrate "Now, the most important test. This order run has already sent its confirmation email, and is waiting out a twenty second delay. I am going to kill the worker, abruptly, right now."
 docker compose kill -s SIGKILL worker; sleep 1
 cue "Just hover the trace while you talk (\"the run state is safe in Postgres; nothing is lost\")."
+tour step:pack_delay wait:2 step:confirm
 narrate "The worker is gone. Let us bring it back."
 docker compose up -d worker >/dev/null 2>&1
 wait_for "$R4" "succeeded|failed|cancelled" 90; show "$C/runs/$R4"
 python3 scripts/duplication_check.py --url "$WORLD" | tee /dev/tty | show_output "Duplication check after kill -9 and restart"
 cue "This page shows the duplication check. Point at \"email.send: 2 executed\", \"shipment.create: 1 executed\" and the green PASS line."
+tour text:email.send text:shipment.create text:PASS
 narrate "And it picked up exactly where it left off, not from the beginning. The duplication check confirms that every email and shipment happened exactly once."
 
 # 6. Outage and backoff
@@ -128,27 +149,32 @@ curl -s -X POST "$WORLD/admin/config" -d '{"mode":"down"}' >/dev/null
 R5=$(trig wf_expense_approval '{"input":{"employee_email":"dev2@example.com","amount_usd":40,"description":"Team lunch"}}')
 sleep 5; show "$C/runs/$R5"
 cue "Point at the \"auto_ok\" step: status \"retrying\", the attempt number, and \"retrying at …\". Expand its details and point at the attempts list (transient_error, retry_in_s)."
+tour step:auto_ok badge:auto_ok text:retrying open:auto_ok inside:auto_ok:transient_error
 narrate "What if an outside service goes down? Here, the email step keeps retrying, waiting a little longer each time, without ever sending duplicates."
 curl -s -X POST "$WORLD/admin/config" -d '{"mode":"ok"}' >/dev/null
 wait_for "$R5" "succeeded|failed|cancelled" 60; show "$C/runs/$R5"
 cue "Point at \"auto_ok\" now \"succeeded\". Expand it and show several attempts but ONE idempotency key."
+tour badge:auto_ok open:auto_ok inside:auto_ok:Idempotency-Key
 narrate "As soon as the service is back, the run finishes on its own."
 
 # 7. Step cap
 R6=$(trig wf_runaway '{"input":{}}'); wait_for "$R6" "failed|succeeded|cancelled" 60; show "$C/runs/$R6"
 cue "Scroll slowly down the long list of steps (check_order → is_shipped → hold, repeating). Scroll back up and point at the red error box: max_steps_exceeded … limits.max_steps=12."
+tour scroll:500 scroll:500 scroll:500 top text:max_steps_exceeded
 narrate "This workflow keeps checking an order that never ships, so it would loop forever. The engine stops it after twelve steps, and tells you exactly why."
 
 # 8. Schema enforcement
 R7=$(trig wf_ai_repair_demo '{"input":{"message":"My earbuds arrived with a cracked charging case and the left bud does not pair. I am really disappointed and want to know my options for a replacement or repair."}}')
 wait_for "$R7" "succeeded|failed|cancelled" 60; show "$C/runs/$R7"
 cue "Expand the \"extract\" step's details and point at \"Model calls\": call 1 INVALID with \"maxLength=60, got … chars\", then call 2 VALID. Point at \"repaired\"."
+tour step:extract open:extract "inside:extract:Model calls" inside:extract:maxLength pills:extract
 narrate "AI answers are always checked against a schema. Here, the first answer was too long. Relay told the model exactly which rule it broke, the model fixed it, and only the valid answer moved forward."
 
 # 9. NL compiler
 show "$C/build"
 curl -s -X POST "$API/workflows/compile" -H "$T" -H 'Content-Type: application/json' -d '{"description":"Every day at 9am, scan our Postgres database for new signups and update each record in Salesforce.","save":false}' | python3 -m json.tool | head -14 | tee /dev/tty | show_output "NL compiler: Postgres + Salesforce request"
 cue "This page shows the compiler's answer. Point at \"refusal\", the reason, and the \"missing_capabilities\" list."
+tour text:refusal text:missing_capabilities text:Salesforce
 narrate "You can also describe a workflow in plain English, and Relay builds it for you. But if you ask for something it cannot do, like connecting to a database or Salesforce, it politely refuses, and tells you what is missing. On the evaluation set, it scored thirteen out of fifteen."
 
 # 10. Smoke test
@@ -156,4 +182,5 @@ cue "Keep the pointer still for a moment while the test runs."
 if [ -n "${PRESENT:-}" ]; then narrate "Finally, the official smoke test."; else narrate "Finally, the official smoke test." & fi
 python3 scripts/smoke_test.py --url "$API" --token relay-demo-token --world "$WORLD" | tee /dev/tty | show_output "Official smoke test (scripts/smoke_test.py)"
 cue "Point at the final line \"28 passed, 0 warnings, 0 failed\"."
+tour "text:28 passed"
 narrate "All twenty eight checks pass, along with forty three automated tests. Everything, including the verification report, is in the pull request. Thanks for watching!"
